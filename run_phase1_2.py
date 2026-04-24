@@ -8,7 +8,7 @@ FILE_NAME = 'feeds.csv'
 print(f"--- [Phase 1] Loading data from '{FILE_NAME}' ---")
 
 if not os.path.exists(FILE_NAME):
-    print(f"Error: '{FILE_NAME}' not found in working directory: {os.getcwd()}")
+    print(f"Error: '{FILE_NAME}' not found in working directory: {os.getcwd()}\nPlease ensure the file is available and retry.")
     sys.exit(2)
 
 # attempt to read excel first, then csv

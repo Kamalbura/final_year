@@ -1,0 +1,116 @@
+# Global configuration for AQ forecasting pipeline
+
+project:
+  name: air_quality_forecasting
+  description: "15-min multivariate AQ forecasting with TFT and baselines"
+  seed: 42
+  output_dir: outputs
+
+data:
+  raw_csv: feeds.csv
+  cleaned_csv: feeds_cleaned_15T.csv
+  frequency: 15T
+  datetime_column: created_at
+  sensor_columns: [pm2_5, pm10, temperature, humidity]
+  forecast_horizon: 16          # number of future steps (4 hours)
+  input_window: 64              # past steps used as input (16 hours)
+  train_ratio: 0.7
+  val_ratio: 0.15               # remainder is test
+  scaler: standard              # options: standard, robust, minmax, none
+
+preprocessing:
+  outlier:
+    method: iqr                  # options: iqr, threshold
+    iqr_k: 1.5
+    thresholds:                  # fallback thresholds if method=threshold
+      pm2_5: 500
+      pm10: 500
+      temperature: 50
+      humidity: 100
+  missing:
+    max_gap_linear: 3            # max consecutive NaNs to fill linearly
+    fill_strategy: forward_then_backward
+  winsorize:
+    enabled: true
+    lower_quantile: 0.01
+    upper_quantile: 0.99
+
+models:
+  baselines:
+    persistence: true
+    mlp:
+      hidden_sizes: [128, 64]
+      dropout: 0.2
+    tcn:
+      channels: [32, 32, 64]
+      kernel_size: 3
+      dropout: 0.2
+  attention:
+    transformer:
+      model_dim: 64
+      num_heads: 4
+      num_layers: 2
+      ff_dim: 128
+      dropout: 0.1
+      horizon: 16
+      output_dim: 4
+    rt_transformer:
+      model_dim: 64
+      num_heads: 4
+      num_layers: 2
+      ff_dim: 128
+      dropout: 0.1
+      local_window: 16
+      horizon: 16
+      output_dim: 4
+  tft:
+    hidden_size: 64
+    lstm_layers: 2
+    dropout: 0.2
+    attention_heads: 4
+    quantiles: [0.1, 0.5, 0.9]
+    static_features: []          # populate later if available
+    time_varying_known: [hour, dayofweek]
+    time_varying_unknown: [pm2_5, pm10, temperature, humidity]
+
+training:
+  optimizer: adam
+  learning_rate: 0.001
+  batch_size: 64
+  max_epochs: 50
+  lr_scheduler:
+    type: step
+    step_size: 25
+    gamma: 0.5
+  early_stopping:
+    patience: 8
+    metric: val_rmse
+    mode: min
+  mc_dropout_samples: 30
+
+logging:
+  save_metrics: true
+  metrics_file: results_new.csv
+  checkpoint_dir: checkpoints
+
+thingspeak:
+  enabled: false
+  channel_strategy: one_channel_per_city
+  write_key_env_prefix: THINGSPEAK_WRITE_KEY_
+  publish_fields: [pm2_5, pm10, carbon_monoxide, nitrogen_dioxide, sulphur_dioxide, ozone, us_aqi]
+  field_names: [field1, field2, field3, field4, field5, field6, field7]
+  publish_cities: [Delhi, Mumbai, Bengaluru, Hyderabad, Chennai, Kolkata, Pune, Ahmedabad, Jaipur, Lucknow, Surat, Kanpur, Nagpur, Bhopal, Visakhapatnam]
+  dry_run: true
+  update_cadence_minutes: 60
+  retry_count: 3
+  timeout_seconds: 45
+
+interpretability:
+  shap: true
+  attention: true
+
+uncertainty:
+  quantile_loss: pinball
+  mc_dropout: true
+
+# End of config
