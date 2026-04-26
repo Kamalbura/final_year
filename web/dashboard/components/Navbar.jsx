@@ -34,10 +34,10 @@ export default function Navbar() {
           </Link>
 
           <Link
-            href="/dashboard/cities"
-            className={`${styles.navLink} ${isActive('/dashboard/cities') ? styles.active : ''}`}
+            href="/predictions"
+            className={`${styles.navLink} ${isActive('/predictions') ? styles.active : ''}`}
           >
-            Legacy Route
+            Predictions
           </Link>
 
           <a href={airflowUrl} target="_blank" rel="noopener noreferrer" className={styles.navLink}>
