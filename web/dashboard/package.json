@@ -1,0 +1,21 @@
+{
+  "name": "final-year-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000 -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start -p 3000 -H 127.0.0.1",
+    "test": "tsx --test"
+  },
+  "dependencies": {
+    "next": "^15.3.0",
+    "pg": "^8.20.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}
