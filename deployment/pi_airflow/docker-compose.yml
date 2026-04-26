@@ -52,6 +52,8 @@ services:
           --email admin@example.com
 
   airflow-webserver:
+        ports:
+          - "5432:5432"
     <<: *airflow-common
     command: webserver
     ports:
