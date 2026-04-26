@@ -109,8 +109,15 @@ export default function CityDashboard({ citySlug }) {
       {/* Header */}
       <section className="header">
         <div className="title-section">
-          <h1>{city.name}</h1>
-          <p className="location">{city.country}</p>
+          <h1 style={{ color: "#eaf2ff", textShadow: "0 1px 2px rgba(0, 0, 0, 0.35)" }}>
+            {city.name}
+          </h1>
+          <p
+            className="location"
+            style={{ color: "#d7e2f0", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
+          >
+            {city.country}
+          </p>
         </div>
 
         <div className="current-status" style={{ borderColor: aqi_category.color }}>
@@ -291,12 +298,13 @@ export default function CityDashboard({ citySlug }) {
         .title-section h1 {
           font-size: 2.5rem;
           margin: 0;
-          color: #1f2937;
+          color: #f8fafc;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .title-section .location {
           margin: 5px 0 0 0;
-          color: #6b7280;
+          color: #cbd5e1;
         }
 
         .current-status {
@@ -357,6 +365,8 @@ export default function CityDashboard({ citySlug }) {
           gap: 10px;
           font-size: 1.125rem;
           font-weight: 600;
+          color: #e2e8f0;
+          text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
         }
 
         .trend .icon {

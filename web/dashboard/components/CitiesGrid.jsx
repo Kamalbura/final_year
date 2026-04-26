@@ -81,8 +81,15 @@ export default function CitiesGrid() {
   return (
     <main className="cities-grid-page">
       <header className="page-header">
-        <h1>Air Quality Index — All Cities</h1>
-        <p className="subtitle">Real-time AQI for {sortedCities.length} global cities</p>
+        <h1 style={{ color: "#eaf2ff", textShadow: "0 1px 2px rgba(0, 0, 0, 0.35)" }}>
+          Air Quality Index — All Cities
+        </h1>
+        <p
+          className="subtitle"
+          style={{ color: "#d7e2f0", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
+        >
+          Real-time AQI for {sortedCities.length} global cities
+        </p>
       </header>
 
       {/* Statistics Cards */}
@@ -186,111 +193,123 @@ export default function CitiesGrid() {
         .cities-grid-page {
           max-width: 1400px;
           margin: 0 auto;
-          padding: 20px;
-          font-family: system-ui, -apple-system, sans-serif;
+          padding: 28px 20px 56px;
         }
 
         .page-header {
-          margin-bottom: 30px;
+          margin-bottom: 26px;
         }
 
         .page-header h1 {
-          font-size: 2rem;
+          font-size: clamp(2rem, 4vw, 3.2rem);
+          line-height: 0.98;
           margin: 0;
-          color: #1f2937;
+          color: var(--text);
+          letter-spacing: -0.04em;
         }
 
         .page-header .subtitle {
-          margin: 8px 0 0 0;
-          color: #6b7280;
+          margin: 10px 0 0 0;
+          color: var(--muted);
           font-size: 1rem;
+          max-width: 62ch;
         }
 
         .stats-cards {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 15px;
-          margin-bottom: 30px;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+          margin-bottom: 22px;
         }
 
         .stat-card {
           padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          background: white;
-          border-top: 4px solid;
+          border-radius: 22px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(16px);
+          position: relative;
+          overflow: hidden;
         }
 
         .stat-card.worst {
-          border-top-color: #7c2d12;
+          border-color: rgba(249, 115, 22, 0.28);
         }
 
         .stat-card.best {
-          border-top-color: #10b981;
+          border-color: rgba(38, 208, 124, 0.28);
         }
 
         .stat-card.average {
-          border-top-color: #3b82f6;
+          border-color: rgba(119, 228, 247, 0.28);
         }
 
         .stat-card h3 {
           margin: 0 0 8px 0;
           font-size: 0.875rem;
-          color: #6b7280;
+          color: var(--muted);
           font-weight: 600;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
         }
 
         .stat-card .city-name {
           font-size: 1.25rem;
           font-weight: 600;
-          color: #1f2937;
+          color: var(--text);
           margin: 8px 0;
         }
 
         .stat-card .value {
-          font-size: 1.75rem;
-          font-weight: bold;
-          color: #374151;
+          font-size: 2rem;
+          font-weight: 800;
+          color: var(--text);
           margin: 8px 0;
         }
 
         .stat-card .country,
         .stat-card .subtext {
           margin: 0;
-          color: #9ca3af;
+          color: var(--muted);
           font-size: 0.875rem;
         }
 
         .controls {
           display: flex;
           gap: 10px;
-          margin-bottom: 20px;
+          margin-bottom: 18px;
+          flex-wrap: wrap;
         }
 
         .sort-buttons {
           display: flex;
           gap: 10px;
+          flex-wrap: wrap;
         }
 
         .sort-buttons button {
-          padding: 8px 16px;
-          border: 1px solid #d1d5db;
-          background: white;
-          border-radius: 6px;
+          padding: 10px 16px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          border-radius: 999px;
           cursor: pointer;
           font-size: 0.875rem;
           font-weight: 500;
           transition: all 0.2s;
+          color: var(--text);
         }
 
         .sort-buttons button:hover {
-          background: #f3f4f6;
+          background: rgba(255, 255, 255, 0.08);
+          transform: translateY(-1px);
         }
 
         .sort-buttons button.active {
-          background: #3b82f6;
+          background: linear-gradient(135deg, var(--accent), var(--accent-2));
           color: white;
-          border-color: #3b82f6;
+          border-color: transparent;
+          box-shadow: 0 14px 30px rgba(119, 228, 247, 0.16);
         }
 
         .grid {
@@ -305,28 +324,30 @@ export default function CitiesGrid() {
         }
 
         .city-card {
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-left: 4px solid;
-          border-radius: 8px;
-          padding: 16px;
-          background: white;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          transition: all 0.3s ease;
+          border-radius: 24px;
+          padding: 18px 18px 16px;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(18px);
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
           position: relative;
           overflow: hidden;
           cursor: pointer;
         }
 
         .city-card:hover {
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+          box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
           transform: translateY(-4px);
+          border-color: rgba(119, 228, 247, 0.22);
         }
 
         .city-card .rank {
           position: absolute;
           top: 10px;
           right: 12px;
-          background: #f3f4f6;
+          background: rgba(255, 255, 255, 0.08);
           width: 28px;
           height: 28px;
           border-radius: 50%;
@@ -335,7 +356,7 @@ export default function CitiesGrid() {
           justify-content: center;
           font-weight: 600;
           font-size: 0.875rem;
-          color: #6b7280;
+          color: var(--text);
         }
 
         .city-card .header {
@@ -352,7 +373,7 @@ export default function CitiesGrid() {
         .city-card .header h3 {
           margin: 0;
           font-size: 1.125rem;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .city-card .body {
@@ -363,7 +384,7 @@ export default function CitiesGrid() {
 
         .city-card .country {
           margin: 0;
-          color: #6b7280;
+          color: var(--muted);
           font-size: 0.875rem;
         }
 
@@ -375,24 +396,25 @@ export default function CitiesGrid() {
 
         .city-card .main-value .aqi {
           font-size: 2rem;
-          font-weight: bold;
-          color: #1f2937;
+          font-weight: 800;
+          color: var(--text);
         }
 
         .city-card .main-value .label {
-          color: #6b7280;
+          color: var(--muted);
           font-size: 0.875rem;
         }
 
         .city-card .category {
           display: inline-block;
-          padding: 4px 12px;
-          background: #f3f4f6;
-          border-radius: 12px;
+          padding: 5px 12px;
+          background: rgba(119, 228, 247, 0.12);
+          border: 1px solid rgba(119, 228, 247, 0.18);
+          border-radius: 999px;
           font-size: 0.75rem;
           font-weight: 600;
           text-transform: uppercase;
-          color: #374151;
+          color: #d9fbff;
           width: fit-content;
         }
 
@@ -400,9 +422,9 @@ export default function CitiesGrid() {
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
           gap: 8px;
-          padding: 8px 0;
-          border-top: 1px solid #f0f0f0;
-          border-bottom: 1px solid #f0f0f0;
+          padding: 12px 0;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .city-card .metric {
@@ -412,7 +434,7 @@ export default function CitiesGrid() {
         .city-card .metric .name {
           display: block;
           font-size: 0.7rem;
-          color: #9ca3af;
+          color: var(--muted);
           text-transform: uppercase;
           margin-bottom: 2px;
         }
@@ -421,11 +443,11 @@ export default function CitiesGrid() {
           display: block;
           font-size: 0.875rem;
           font-weight: 600;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .city-card .updated {
-          color: #d1d5db;
+          color: var(--muted);
           font-size: 0.75rem;
         }
 
@@ -433,7 +455,7 @@ export default function CitiesGrid() {
           position: absolute;
           bottom: 10px;
           right: 16px;
-          color: #3b82f6;
+          color: var(--accent);
           font-size: 0.875rem;
           font-weight: 600;
           opacity: 0;
@@ -446,19 +468,40 @@ export default function CitiesGrid() {
 
         .loading,
         .error {
-          padding: 40px 20px;
+          padding: 48px 20px;
           text-align: center;
           font-size: 1rem;
-          color: #374151;
+          color: var(--muted);
+          background: rgba(255, 255, 255, 0.04);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 18px;
+          box-shadow: var(--shadow);
+        }
+
+        .error {
+          color: #ffb3b3;
         }
 
         @media (max-width: 768px) {
           .grid {
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: 1fr;
           }
 
           .stats-cards {
             grid-template-columns: 1fr;
+          }
+
+          .controls,
+          .sort-buttons {
+            width: 100%;
+          }
+
+          .sort-buttons button {
+            flex: 1 1 auto;
+          }
+
+          .city-card .metrics {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
         }
       `}</style>
