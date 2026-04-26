@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebooks (keep only critical ones in git)
+.ipynb_checkpoints/
+*.ipynb
+
+# Data files (too large for version control)
+*.csv
+*.npy
+*.pkl
+*.pth
+*.h5
+*.npz
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Embedded external tools (remove from git, keep locally for reference)
+deployment/graphify/
+deployment/graphiti/
+
+# Cache & build artifacts
+.graphify_cache/
+graphify-out/
+*.cache
+.cache/
+
+# Environment
+.env
+.env.local
+config.local.yaml
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

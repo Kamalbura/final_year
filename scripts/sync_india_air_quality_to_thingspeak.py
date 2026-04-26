@@ -13,7 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src.data.cities import INDIA_MAJOR_CITIES, city_by_slug
+from src.data.cities import ALL_MAJOR_CITIES, INDIA_MAJOR_CITIES, city_by_slug
 from src.data.live_air_quality import HOURLY_FIELDS, fetch_latest_city_observation
 from src.integrations.thingspeak import ThingSpeakClient
 
@@ -58,7 +58,7 @@ def resolve_city_subset(raw_value: str) -> list:
         if normalized in registry:
             requested.append(registry[normalized])
             continue
-        match = next((city for city in INDIA_MAJOR_CITIES if city.name.lower() == token.strip().lower()), None)
+        match = next((city for city in ALL_MAJOR_CITIES if city.name.lower() == token.strip().lower()), None)
         if match is None:
             raise ValueError(f"Unknown city: {token.strip()}")
         requested.append(match)

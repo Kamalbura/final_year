@@ -7,3 +7,4 @@ joblib
 matplotlib
 seaborn
 requests
+psycopg2-binary
