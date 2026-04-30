@@ -1,0 +1,87 @@
+PROJECT AUDIT & IMPROVEMENT PLAN (Draft)
+Date: 2025-11-23
+
+1. CURRENT OBJECTIVE
+Multivariate 15-minute air-quality forecasting (pm2_5, pm10, temperature, humidity). Recommended horizon: 16 steps (next 4 hours) for proactive alerts.
+
+2. EXISTING ASSETS
+Raw: feeds.csv
+Cleaning script: complete_phase1_2.py (rename, datetime index, outlier thresholding, rolling mean fill, 15T resample -> feeds_cleaned_15T.csv)
+Exploration: run_phase1_2.py + phase1_2_air_quality.ipynb
+Feature Engineering / High Frequency: phase4_* notebooks
+Model Training (LSTM/CNN/TCN/BiLSTM): phase6_* notebooks; model artifacts (*.pth)
+Results: results.csv (metrics snapshot)
+
+3. KEY ISSUES
+- Reproducibility: No centralized seeds, no environment lock, ad-hoc notebook code.
+- Data Leakage Risk: Aggressive rolling mean fill across entire series before splits.
+- Missing Normalization: No scaling before deep models (potential gradient instability).
+- Outlier Handling: Hard thresholds only; need robust winsorization or IQR-based capping.
+- Split Strategy: Train/test not clearly codified; lack of validation and rolling-origin evaluation.
+- Metrics: Limited to RMSE, MAE, R2; missing MASE, CRPS, interval coverage, error distribution.
+- Baselines: No classical statistical (ARIMA/Prophet), persistence, or simple MLP baseline.
+- Uncertainty: Deterministic point forecasts only; no quantile prediction or probabilistic intervals.
+- Interpretability: No feature attributions (attention, SHAP) or temporal importance analysis.
+- Configuration: Parameters scattered in notebooks; no unified config file.
+
+4. TARGET PIPELINE (TO BUILD)
+Raw -> Preprocess (winsorize, minimal forward/back fill, train-only scaling) -> Windowed dataset (input_length, forecast_horizon=16) -> Baselines (Persistence, ARIMA/Prophet, TCN, BiLSTM, SimpleMLP) -> Advanced Model (Temporal Fusion Transformer) with quantile outputs & MC dropout -> Evaluation (metrics, calibration, coverage, residual plots) -> Documentation & model card.
+
+5. IMPROVEMENT PRIORITIES (High → Medium → Low)
+1. (High) Deterministic preprocessing & chronological splits (train/val/test).
+2. (High) Config-driven training + global seeding.
+3. (High) Add scaling & robust outlier handling before modeling.
+4. (High) Baseline model suite for comparative benchmarking.
+5. (High) TFT with quantile regression & uncertainty (MC dropout).
+6. (Medium) Rolling-origin cross-validation & error distribution logging.
+7. (Medium) Interpretability (attention importances, SHAP for static/time-varying features).
+8. (Medium) Calibration analysis (coverage of 10th/50th/90th quantiles).
+9. (Low) Ensemble / deep ensembles for uncertainty refinement.
+10. (Low) Automated model card generation.
+
+6. RESEARCH PAPER COMPARISON (Condensed)
+- TCN Time-Series Forecasting: Highlights dilated causal convolutions; our TCN baseline to include proper weight init & residual blocks.
+- Temporal Fusion Transformer (Lim et al. 2020): Multi-horizon, quantile loss, interpretable variable selection. We will adopt core ideas (static & time-varying features, gating, multi-head attention). Initial phase: simplified PyTorch implementation with quantile outputs.
+- Informer / Efficient Attention for Long Sequences: Consider later if horizon extends beyond 16 steps.
+- Probabilistic Forecasting (DeepAR / Quantile Regression): Justifies quantile loss + coverage metrics.
+- Air Quality Spatiotemporal Papers (e.g., ST-LSTM variants): Future extension to include spatial sensors if available.
+
+7. DATA HANDLING PLAN
+- Outliers: Compute per-sensor IQR; cap outside [Q1 - 1.5*IQR, Q3 + 1.5*IQR] or explicit domain thresholds; log modifications.
+- Missing: Limit interpolation within small gaps (<=3 consecutive); avoid using future info (perform after train/val/test split when possible for inference-like fill on validation/test).
+- Scaling: Fit StandardScaler (or RobustScaler) on train only; persist scaler to disk.
+
+8. SPLIT STRATEGY
+- Chronological: Train (earliest 70%), Validation (next 15%), Test (final 15%).
+- Rolling-origin CV (optional): Expand training window; evaluate on successive validation slices.
+
+9. METRICS & REPORTING
+- Point: RMSE, MAE, R2, MASE.
+- Probabilistic: Pinball loss (quantiles), CRPS (approx), coverage of 80% interval.
+- Diagnostics: Autocorrelation of residuals, histogram, Q-Q plot.
+
+10. UNCERTAINTY APPROACH
+- Quantile Regression (q=[0.1,0.5,0.9]) + MC dropout (N=30 samples) for predictive interval spread; compute empirical coverage.
+
+11. INTERPRETABILITY
+- TFT variable selection weights; attention on decoder steps.
+- SHAP (Kernel/Deep) on validation subset for baseline models.
+
+12. REQUIRED FILES (TO CREATE)
+config.yaml
+src/data/preprocess.py
+src/data/dataset.py
+src/models/baselines.py
+src/models/tft.py (scaffold)
+src/evaluation/metrics.py
+src/utils/seed.py
+train_baselines.py
+train_tft.py
+evaluate.py
+README.md (updated)
+requirements.txt
+
+13. NEXT ACTION
+Implement config + preprocessing scaffold.
+
+--- END DRAFT (Will refine after code scaffold) ---
