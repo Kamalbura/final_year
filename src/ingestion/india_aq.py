@@ -39,6 +39,11 @@ DEFAULT_RETRIES = 3
 DEFAULT_INITIAL_WINDOW_DAYS = 365
 
 
+def build_run_id(pipeline_name: str, started_at: datetime) -> str:
+    safe_name = "".join(char if char.isalnum() or char in {"_", "-"} else "_" for char in pipeline_name)
+    return f"{safe_name}-{started_at.strftime('%Y%m%dT%H%M%S%fZ')}"
+
+
 @dataclass(frozen=True)
 class IngestionSettings:
     dsn: str
@@ -532,11 +537,11 @@ def run_incremental_cycle_for_cities(
     settings: IngestionSettings,
     cities: Iterable[City],
     *,
-    pipeline_name: str = "aq_postgres_incremental_6h",
+    pipeline_name: str = "aq_postgres_incremental_hourly",
 ) -> dict[str, Any]:
     city_list = tuple(cities)
-    run_id = datetime.now(timezone.utc).strftime("aq-%Y%m%dT%H%M%SZ")
     started_at = datetime.now(timezone.utc)
+    run_id = build_run_id(pipeline_name, started_at)
     run_end = started_at
 
     settings.archive_root.mkdir(parents=True, exist_ok=True)
@@ -549,6 +554,22 @@ def run_incremental_cycle_for_cities(
     try:
         ensure_schema(connection, settings.schema_name)
         seed_cities(connection, city_list, settings.schema_name)
+        record_ingestion_run(
+            connection,
+            run_id=run_id,
+            pipeline_name=pipeline_name,
+            started_at=started_at,
+            finished_at=None,
+            status="running",
+            cities_total=len(city_list),
+            cities_succeeded=0,
+            cities_failed=0,
+            rows_fetched=0,
+            rows_upserted=0,
+            archive_root=settings.archive_root,
+            details={"results": [], "failures": []},
+            schema_name=settings.schema_name,
+        )
         watermarks = load_watermarks(connection, settings.schema_name)
 
         for city in city_list:
@@ -659,7 +680,7 @@ def run_incremental_cycle_for_city(
     return run_incremental_cycle_for_cities(
         settings,
         (city,),
-        pipeline_name=pipeline_name or f"aq_{city.slug}_incremental_6h",
+        pipeline_name=pipeline_name or f"aq_{city.slug}_incremental_hourly",
     )
 
 
@@ -669,8 +690,8 @@ def bootstrap_csv_to_postgres(
     *,
     source: str | None = None,
 ) -> dict[str, Any]:
-    run_id = datetime.now(timezone.utc).strftime("aq-bootstrap-%Y%m%dT%H%M%SZ")
     started_at = datetime.now(timezone.utc)
+    run_id = build_run_id("aq_bootstrap_csv_to_postgres", started_at)
     source_name = source or settings.source
     connection = connect(settings.dsn)
     results: list[dict[str, Any]] = []
@@ -678,6 +699,22 @@ def bootstrap_csv_to_postgres(
     try:
         ensure_schema(connection, settings.schema_name)
         seed_cities(connection, INDIA_MAJOR_CITIES, settings.schema_name)
+        record_ingestion_run(
+            connection,
+            run_id=run_id,
+            pipeline_name="aq_bootstrap_csv_to_postgres",
+            started_at=started_at,
+            finished_at=None,
+            status="running",
+            cities_total=len(INDIA_MAJOR_CITIES),
+            cities_succeeded=0,
+            cities_failed=0,
+            rows_fetched=0,
+            rows_upserted=0,
+            archive_root=settings.archive_root,
+            details={"source_csv": str(csv_path), "results": []},
+            schema_name=settings.schema_name,
+        )
 
         frame = pd.read_csv(csv_path)
         frame = normalize_observation_frame(frame)

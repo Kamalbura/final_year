@@ -12,8 +12,9 @@ if REPO_ROOT.exists() and str(REPO_ROOT) not in sys.path:
 from airflow import DAG  # type: ignore[import-untyped]
 from airflow.operators.python import PythonOperator  # type: ignore[import-untyped]
 
-from src.data.cities import INDIA_MAJOR_CITIES, City, dag_id_for_city
-from src.ingestion.india_aq import IngestionSettings, run_incremental_cycle_for_city
+from src.data.cities import ALL_MAJOR_CITIES, City, dag_id_for_city
+from src.ingestion.india_aq import IngestionSettings, connect, run_incremental_cycle_for_city
+from scripts.migrate_aggregates import refresh_materialized_views
 
 
 DEFAULT_ARGS = {
@@ -38,6 +39,15 @@ def _run_city(city_slug: str, pipeline_name: str) -> dict[str, object]:
     return run_incremental_cycle_for_city(settings, city_slug, pipeline_name=pipeline_name)
 
 
+def _refresh_warehouse_views() -> None:
+    settings = IngestionSettings.from_env()
+    connection = connect(settings.dsn)
+    try:
+        refresh_materialized_views(connection)
+    finally:
+        connection.close()
+
+
 def _build_city_dag(city: City) -> DAG:
     dag_id = _dag_id_for_city(city)
 
@@ -60,5 +70,23 @@ def _build_city_dag(city: City) -> DAG:
     return dag
 
 
-for _city in INDIA_MAJOR_CITIES:
+for _city in ALL_MAJOR_CITIES:
     globals()[_dag_id_for_city(_city)] = _build_city_dag(_city)
+
+
+with DAG(
+    dag_id="aq_refresh_warehouse_views_hourly",
+    description="Refresh materialized warehouse views after city ingestion DAGs run.",
+    default_args=DEFAULT_ARGS,
+    start_date=datetime(2026, 4, 25, tzinfo=timezone.utc),
+    schedule="10 * * * *",
+    catchup=False,
+    max_active_runs=1,
+    tags=["aq", "pi", "warehouse", "refresh"],
+) as _warehouse_refresh_dag:
+    PythonOperator(
+        task_id="refresh_materialized_views",
+        python_callable=_refresh_warehouse_views,
+    )
+
+globals()["aq_refresh_warehouse_views_hourly"] = _warehouse_refresh_dag

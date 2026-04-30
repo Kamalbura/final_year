@@ -26,7 +26,6 @@ import {
 
 const TARGET_CITIES = [
   { slug: "delhi", name: "Delhi NCR" },
-  { slug: "mumbai", name: "Mumbai" },
   { slug: "hyderabad", name: "Hyderabad (UoH)" },
   { slug: "bengaluru", name: "Bengaluru (MG Road)" },
 ];

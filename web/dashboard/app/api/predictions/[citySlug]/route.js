@@ -1,7 +1,10 @@
-import pool from "../../lib/db-pool.js";
+import pool from "../../../lib/db-pool.js";
+import { getSingleCity } from "../../../lib/cities.js";
 
 export async function GET(request, { params }) {
   const { citySlug } = await params;
+  const city = getSingleCity(citySlug);
+  const warehouseSlug = city?.warehouseSlug || citySlug.replaceAll("-", "_");
   
   try {
     // Get past 24 hours of actual data from materialized view
@@ -15,7 +18,7 @@ export async function GET(request, { params }) {
         AND hour >= NOW() - INTERVAL '24 hours'
       ORDER BY hour ASC
       `,
-      [citySlug]
+      [warehouseSlug]
     );
 
     // Get forecasts for the future from aq.forecasts
@@ -32,7 +35,7 @@ export async function GET(request, { params }) {
       ORDER BY horizon_timestamp ASC
       LIMIT 168
       `,
-      [citySlug]
+      [warehouseSlug]
     );
 
     const timeline = [];
@@ -75,7 +78,8 @@ export async function GET(request, { params }) {
     if (next24hAvg < currentActual - 5) trend = 'down';
 
     const data = {
-      city: citySlug,
+      city: city?.slug || citySlug,
+      warehouse_slug: warehouseSlug,
       current: {
         aqi: currentActual,
         timestamp: new Date().toISOString()
@@ -106,4 +110,3 @@ export async function GET(request, { params }) {
     });
   }
 }
-

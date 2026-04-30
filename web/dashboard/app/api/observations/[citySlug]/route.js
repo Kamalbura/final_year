@@ -95,7 +95,7 @@ function getHealthAdvisory(categoryName) {
 
 export async function GET(request, { params }) {
   try {
-    const { citySlug } = params;
+    const { citySlug } = await params;
     const { searchParams } = new URL(request.url);
 
     const timeRange = searchParams.get("timeRange") || "24h";
@@ -116,7 +116,8 @@ export async function GET(request, { params }) {
     }
 
     // Get latest observation
-    const latest = await repo.getLatest(citySlug);
+    const warehouseSlug = city.warehouseSlug || citySlug.replaceAll("-", "_");
+    const latest = await repo.getLatest(warehouseSlug);
     if (!latest) {
       return new Response(
         JSON.stringify({ error: "No observations yet for this city" }),
@@ -125,11 +126,11 @@ export async function GET(request, { params }) {
     }
 
     // Get aggregates
-    const hourlyStats = await repo.getHourlyStats(citySlug, hours);
-    const dailyStats = await repo.getDailyStats(citySlug, Math.ceil(hours / 24));
+    const hourlyStats = await repo.getHourlyStats(warehouseSlug, hours);
+    const dailyStats = await repo.getDailyStats(warehouseSlug, Math.ceil(hours / 24));
 
     // Get trend
-    const trend = await repo.trending(citySlug, hours);
+    const trend = await repo.trending(warehouseSlug, hours);
 
     // Get AQI category
     const aqiCategory = getAQICategory(latest.us_aqi);
@@ -152,6 +153,7 @@ export async function GET(request, { params }) {
       JSON.stringify({
         city: {
           slug: city.slug,
+          warehouse_slug: warehouseSlug,
           name: city.name,
           country: city.country,
           latitude: city.latitude,

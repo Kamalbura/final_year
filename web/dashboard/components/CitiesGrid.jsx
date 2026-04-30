@@ -81,12 +81,12 @@ export default function CitiesGrid() {
   return (
     <main className="cities-grid-page">
       <header className="page-header">
-        <h1 style={{ color: "#eaf2ff", textShadow: "0 1px 2px rgba(0, 0, 0, 0.35)" }}>
+        <h1 style={{ color: "var(--text)", textShadow: "0 1px 2px rgba(0, 0, 0, 0.35)" }}>
           Air Quality Index — All Cities
         </h1>
         <p
           className="subtitle"
-          style={{ color: "#d7e2f0", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
+          style={{ color: "var(--muted)", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
         >
           Real-time AQI for {sortedCities.length} global cities
         </p>

@@ -1,0 +1,303 @@
+\documentclass[11pt,a4paper,oneside]{book}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\geometry{margin=1in}
+\definecolor{primary}{RGB}{41, 128, 185}
+\hypersetup{colorlinks=true, linkcolor=primary, citecolor=primary, urlcolor=primary}
+
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries\color{primary}}{}{0pt}{\Huge}
+\titleformat{\section}{\normalfont\Large\bfseries\color{primary}}{\thesection}{1em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\leftmark}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    {\Huge\bfseries Air Quality Forecasting Platform \par}
+    \vspace{1cm}
+    {\Large\itshape Comprehensive Machine Learning Benchmark \& Analysis \par}
+    \vspace{2cm}
+    \includegraphics[width=0.6\textwidth]{rmse_total_comparison.png} \par
+    \vspace{2cm}
+    {\large Prepared by: Automated Research Pipeline \par}
+    {\large Date: \today \par}
+\end{titlepage}
+
+\tableofcontents
+
+\chapter{Introduction}
+Air pollution is one of the most significant environmental challenges facing urban populations today. High concentrations of Particulate Matter (PM2.5 and PM10) are associated with severe respiratory and cardiovascular diseases. This report details the implementation and evaluation of various machine learning architectures aimed at providing accurate 24-hour forecasts of the US Air Quality Index (AQI).
+
+\section{Project Objective}
+The goal of this project is to develop a robust, multi-city forecasting system that leverages historical air quality data to predict future trends. By providing early warnings, urban authorities and citizens can take proactive measures to mitigate the impacts of poor air quality.
+
+\section{Methodology}
+Our methodology involves several key phases:
+\begin{enumerate}
+    \item \textbf{Data Ingestion}: Continuous monitoring of air quality parameters from Open-Meteo.
+    \item \textbf{Preprocessing}: Imputation of missing values, temporal resampling, and normalization.
+    \item \textbf{Feature Engineering}: Selection of optimal meteorological and pollutant features.
+    \item \textbf{Model Training}: Benchmarking classical ML and Deep Learning architectures.
+    \item \textbf{Optimization}: Automated hyperparameter tuning using Optuna.
+\end{enumerate}
+
+\chapter{Data Analysis and Features}
+The models are trained on one year of historical data (2025-2026) for three cities: Delhi, Hyderabad, and Bengaluru. These cities represent diverse climatic and industrial profiles.
+
+\section{Feature Space}
+The following features are utilized as inputs for all models:
+\begin{itemize}
+    \item \textbf{PM2.5}: Fine particulate matter.
+    \item \textbf{PM10}: Coarse particulate matter.
+    \item \textbf{CO}: Carbon Monoxide levels.
+    \item \textbf{NO2}: Nitrogen Dioxide levels.
+    \item \textbf{O3}: Ozone levels.
+\end{itemize}
+
+The target variable is the calculated \textbf{US AQI}, which follows EPA standards for indexing air quality health risks.
+
+\chapter{Architecture Overview}
+In this benchmark, we evaluate three fundamentally different architectures.
+
+\section{Long Short-Term Memory (LSTM)}
+LSTMs are a type of Recurrent Neural Network (RNN) capable of learning long-term dependencies. They are particularly effective for time-series forecasting where the relative timing of events is crucial. Our implementation uses a multi-layered LSTM with dropout for regularization.
+
+\section{Random Forest}
+Random Forest is an ensemble learning method that constructs a multitude of decision trees during training. It is robust to outliers and can capture non-linear relationships without the need for extensive feature scaling. We use a multi-output configuration to predict the entire 24-hour horizon simultaneously.
+
+\section{Transformer}
+The Transformer architecture, originally designed for NLP, utilizes self-attention mechanisms to weigh the significance of different parts of the input sequence. For time-series, this allows the model to focus on specific historical patterns that are most relevant to the current prediction.
+
+\chapter{Experimental Results}
+\section{Metrics Summary}
+The table below summarizes the performance of the models trained locally and on Kaggle.
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lllc rr}
+    \toprule
+    \textbf{City} & \textbf{Model} & \textbf{Source} & \textbf{RMSE} & \textbf{MAE} \\
+    \midrule
+    Bengaluru & SVR & Kaggle & 25.28 & 17.18 \\
+    Bengaluru & LightGBM & Kaggle & 25.70 & 16.13 \\
+    Bengaluru & CatBoost & Kaggle & 26.05 & 16.87 \\
+    Bengaluru & XGBoost & Kaggle & 26.06 & 16.83 \\
+    Bengaluru & Random Forest & Kaggle & 26.96 & 16.84 \\
+    Bengaluru & ARIMA & Kaggle & 35.80 & 31.33 \\
+    Bengaluru & SARIMA & Kaggle & 38.77 & 33.98 \\
+    Bengaluru & VAR & Kaggle & 40.81 & 31.44 \\
+    Bengaluru & LSTM & Local & 24.01 & 18.10 \\
+    Bengaluru & Transformer & Local & 29.25 & 19.92 \\
+    Delhi & LightGBM & Kaggle & 73.87 & 47.29 \\
+    Delhi & SVR & Kaggle & 75.63 & 55.78 \\
+    Delhi & CatBoost & Kaggle & 79.00 & 50.47 \\
+    Delhi & Random Forest & Kaggle & 79.62 & 50.71 \\
+    Delhi & XGBoost & Kaggle & 83.95 & 54.15 \\
+    Delhi & VAR & Kaggle & 139.17 & 86.88 \\
+    Delhi & ARIMA & Kaggle & 139.72 & 86.89 \\
+    Delhi & SARIMA & Kaggle & 148.65 & 91.77 \\
+    Delhi & Transformer & Local & 87.73 & 57.85 \\
+    Delhi & LSTM & Local & 121.26 & 91.90 \\
+    Hyderabad & LightGBM & Kaggle & 16.93 & 12.02 \\
+    Hyderabad & Random Forest & Kaggle & 17.24 & 12.08 \\
+    Hyderabad & CatBoost & Kaggle & 17.86 & 13.32 \\
+    Hyderabad & XGBoost & Kaggle & 17.88 & 12.91 \\
+    Hyderabad & SVR & Kaggle & 18.03 & 13.90 \\
+    Hyderabad & VAR & Kaggle & 39.61 & 32.68 \\
+    Hyderabad & ARIMA & Kaggle & 55.22 & 50.37 \\
+    Hyderabad & SARIMA & Kaggle & 72.03 & 67.39 \\
+    Hyderabad & Transformer & Local & 17.44 & 12.98 \\
+    Hyderabad & LSTM & Local & 18.60 & 14.04 \\
+    \bottomrule
+    \end{tabular}
+    \caption{Benchmarking Results: RMSE and MAE across all trials}
+\end{table}
+
+\chapter{Detailed Model Reports}
+\section{LSTM Detailed Analysis}
+This section explores the specific performance of the LSTM architecture.
+
+\subsection{Delhi Analysis}
+The LSTM model for Delhi was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 121.2564
+    \item[MAE] 91.8961
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item hidden\_dim: 98
+    \item num\_layers: 2
+    \item lr: 0.004935934201380929
+    \item dropout: 0.139136619038975
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{LSTM_delhi_forecast.png}
+    \caption{LSTM Forecasting Performance: Delhi}
+\end{figure}
+
+\newpage
+\subsection{Hyderabad Analysis}
+The LSTM model for Hyderabad was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 18.6030
+    \item[MAE] 14.0388
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item hidden\_dim: 35
+    \item num\_layers: 2
+    \item lr: 0.0009023641811357834
+    \item dropout: 0.10976497140245894
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{LSTM_hyderabad_forecast.png}
+    \caption{LSTM Forecasting Performance: Hyderabad}
+\end{figure}
+
+\newpage
+\subsection{Bengaluru Analysis}
+The LSTM model for Bengaluru was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 24.0114
+    \item[MAE] 18.1008
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item hidden\_dim: 62
+    \item num\_layers: 2
+    \item lr: 0.0021583179853588434
+    \item dropout: 0.4062278179159336
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{LSTM_bengaluru_forecast.png}
+    \caption{LSTM Forecasting Performance: Bengaluru}
+\end{figure}
+
+\newpage
+\section{RandomForest Detailed Analysis}
+This section explores the specific performance of the RandomForest architecture.
+
+Local training results for this model are still being processed.
+
+\section{Transformer Detailed Analysis}
+This section explores the specific performance of the Transformer architecture.
+
+\subsection{Delhi Analysis}
+The Transformer model for Delhi was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 87.7275
+    \item[MAE] 57.8484
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item model\_dim: 32
+    \item layers: 3
+    \item heads: 4
+    \item lr: 0.00017036434521823437
+    \item dropout: 0.35363203185898223
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Transformer_delhi_forecast.png}
+    \caption{Transformer Forecasting Performance: Delhi}
+\end{figure}
+
+\newpage
+\subsection{Hyderabad Analysis}
+The Transformer model for Hyderabad was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 17.4357
+    \item[MAE] 12.9820
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item model\_dim: 32
+    \item layers: 1
+    \item heads: 2
+    \item lr: 0.006967945871133934
+    \item dropout: 0.11443966754490886
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Transformer_hyderabad_forecast.png}
+    \caption{Transformer Forecasting Performance: Hyderabad}
+\end{figure}
+
+\newpage
+\subsection{Bengaluru Analysis}
+The Transformer model for Bengaluru was optimized over multiple trials.
+
+\begin{description}
+    \item[RMSE] 29.2536
+    \item[MAE] 19.9165
+\end{description}
+
+\textbf{Final Hyperparameter Configuration:}
+\begin{itemize}
+    \item model\_dim: 64
+    \item layers: 2
+    \item heads: 2
+    \item lr: 0.0022727636572541705
+    \item dropout: 0.32908487392681135
+    \item epochs: 20
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.9\textwidth]{Transformer_bengaluru_forecast.png}
+    \caption{Transformer Forecasting Performance: Bengaluru}
+\end{figure}
+
+\newpage
+\chapter{Conclusion}
+The benchmarking results indicate that while deep learning models like Transformers and LSTMs show great promise in capturing complex temporal patterns, classical ensemble methods like Random Forest and LightGBM remain highly competitive, especially in cities with higher variance such as Delhi.
+
+Future work will focus on:
+\begin{itemize}
+    \item Hybrid spatio-temporal models (ST-GCN).
+    \item Incorporation of external meteorological factors (Wind speed, Precipitation).
+    \item Real-time deployment on Raspberry Pi edge devices.
+\end{itemize}
+
+\end{document}

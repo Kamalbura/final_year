@@ -1,0 +1,16 @@
+{
+  "id": "kamalbura/aqi-gpu-benchmark-3-city-model-zoo",
+  "title": "AQI GPU Benchmark 3 City Model Zoo",
+  "code_file": "aqi_gpu_benchmark.ipynb",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "kamalbura/indian-air-quality-3-city-benchmark-1y"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}

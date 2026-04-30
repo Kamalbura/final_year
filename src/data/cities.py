@@ -64,12 +64,16 @@ ALL_MAJOR_CITIES: tuple[City, ...] = INDIA_MAJOR_CITIES + GLOBAL_MAJOR_CITIES
 
 
 def city_by_slug() -> dict[str, City]:
-    return {city.slug: city for city in INDIA_MAJOR_CITIES}
+    cities: dict[str, City] = {}
+    for city in ALL_MAJOR_CITIES:
+        cities[city.slug] = city
+        cities[city.slug.replace("_", "-")] = city
+    return cities
 
 
 def city_catalog() -> tuple[City, ...]:
-    return INDIA_MAJOR_CITIES
+    return ALL_MAJOR_CITIES
 
 
 def dag_id_for_city(city: City) -> str:
-    return f"aq_{city.slug}_incremental_6h"
+    return f"aq_{city.slug}_incremental_hourly"

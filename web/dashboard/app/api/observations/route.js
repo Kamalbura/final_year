@@ -20,7 +20,7 @@
  */
 
 import { ObservationRepository } from "../../lib/observations_repo.js";
-import { getAllCities } from "../../lib/cities.js";
+import { getCityForWarehouseSlug } from "../../lib/cities.js";
 
 const AQI_CATEGORIES = {
   0: { name: "good", color: "#10b981", emoji: "✅" },
@@ -49,7 +49,6 @@ function getCategoryForAQI(aqi) {
 export async function GET() {
   try {
     const repo = new ObservationRepository();
-    const citiesDb = getAllCities();
 
     // Get latest for all cities
     const allLatest = await repo.allCitiesLatest();
@@ -57,13 +56,14 @@ export async function GET() {
     // Rank by AQI (highest = worst)
     const ranked = allLatest
       .map((obs, index) => {
-        const cityInfo = citiesDb.find((c) => c.slug === obs.city_slug) || {};
+        const cityInfo = getCityForWarehouseSlug(obs.city_slug) || {};
         const category = getCategoryForAQI(obs.us_aqi);
 
         return {
           rank: index + 1,
           city: {
-            slug: obs.city_slug,
+            slug: cityInfo.slug || obs.city_slug,
+            warehouse_slug: obs.city_slug,
             name: obs.city_name,
             country: cityInfo.country || "Unknown",
           },

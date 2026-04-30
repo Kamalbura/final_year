@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "kaggle": {
+      "command": "uvx",
+      "args": ["kaggle-mcp@latest"],
+      "env": {
+        "KAGGLE_USERNAME": "kamalbura",
+        "KAGGLE_KEY": "${KAGGLE_KEY}"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "kernels_status",
+        "kernels_output",
+        "kernels_list",
+        "datasets_list",
+        "datasets_status"
+      ]
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": ["fetch"]
+    },
+    "filesystem": {
+      "command": "uvx",
+      "args": ["mcp-server-filesystem", "outputs", "data", "logs"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": ["read_file", "list_directory", "search_files"]
+    }
+  }
+}

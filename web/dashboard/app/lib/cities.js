@@ -45,11 +45,41 @@ function normalize(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function warehouseSlug(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function enrichCity(city) {
+  return {
+    ...city,
+    warehouseSlug: city.warehouseSlug || warehouseSlug(city.name),
+  };
+}
+
 export function getAllCities() {
-  return [...CITIES];
+  return CITIES.map(enrichCity);
 }
 
 export function getSingleCity(slugOrName) {
   const target = normalize(slugOrName);
-  return CITIES.find((city) => city.slug === target || normalize(city.name) === target) || null;
+  const targetWarehouse = warehouseSlug(slugOrName);
+  const city = CITIES.find((entry) => {
+    const enriched = enrichCity(entry);
+    return (
+      entry.slug === target ||
+      normalize(entry.name) === target ||
+      enriched.warehouseSlug === targetWarehouse
+    );
+  });
+  return city ? enrichCity(city) : null;
+}
+
+export function getCityForWarehouseSlug(slug) {
+  const targetWarehouse = warehouseSlug(slug);
+  const city = CITIES.find((entry) => enrichCity(entry).warehouseSlug === targetWarehouse);
+  return city ? enrichCity(city) : null;
 }

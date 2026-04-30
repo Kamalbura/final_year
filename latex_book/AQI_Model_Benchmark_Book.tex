@@ -1,0 +1,286 @@
+\documentclass[11pt,a4paper,oneside]{book}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{amsmath}
+\geometry{margin=1in}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=cyan, pdftitle={Air Quality Forecasting Benchmarks}}
+
+\title{\Huge\textbf{Air Quality Forecasting Benchmarks}\\\Large Delhi, Hyderabad, and Bengaluru}
+\author{Final Year AQI Warehouse and Kaggle GPU Pipeline}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\chapter{Executive Summary}
+This book documents the benchmark progression from statistical baselines to spatio-temporal neural models for hourly AQI forecasting.
+All models are trained region-specifically: Delhi, Hyderabad, and Bengaluru are trained as independent city datasets using the same one-year feature set.
+The warehouse source of truth is PostgreSQL schema \texttt{aq}, populated by hourly Airflow DAGs from Open-Meteo.
+\begin{itemize}
+  \item Completed runs (\texttt{status=ok}): 24
+  \item Skipped runs: 36
+  \item Failed runs: 0
+\end{itemize}
+
+\chapter{Dataset and Forecasting Setup}
+\begin{itemize}
+  \item Cities: Delhi, Hyderabad, Bengaluru.
+  \item Features: \texttt{pm2\_5}, \texttt{pm10}, \texttt{carbon\_monoxide}, \texttt{nitrogen\_dioxide}, \texttt{ozone}.
+  \item Target: \texttt{us\_aqi}.
+  \item Lookback window: pending hours.
+  \item Forecast horizon: pending hours.
+  \item Execution device: auto.
+  \item Epochs for deep learning models: pending.
+  \item Missing values: hourly resampling, short-gap interpolation, forward/backward fill, monthly median fallback, and global median fallback.
+\end{itemize}
+
+\section{Validation and Testing Protocol}
+\begin{itemize}
+  \item Chronological split: 70\% train, 15\% validation, 15\% test at city level.
+  \item Windowed supervision: lookback-to-horizon framing for all non-statistical families.
+  \item Scaling: StandardScaler on features and target, fit on train only; inverse transform for reporting metrics.
+  \item Reported metrics: RMSE, MAE, and $R^2$ from held-out test windows.
+  \item F1-score is not reported in this benchmark because this is a regression task (continuous AQI prediction), not a classification task.
+\end{itemize}
+
+\chapter{Model Phases}
+\section{Phase 1: Statistical Baselines}
+ARIMA, SARIMA, and VAR establish the linear statistical floor. They are useful sanity checks, but pollutant interactions and abrupt emission spikes usually expose their limits.
+\section{Phase 2: Classical ML Ensembles}
+SVR, Random Forest, XGBoost, LightGBM, and CatBoost convert the time series into supervised tabular windows. This phase tests whether engineered lag structure is enough before moving to neural sequence models.
+\section{Phase 3: Standard DL Sequence Models}
+RNN, LSTM, GRU, and Bi-LSTM consume the sequence directly. The comparison documents the transition from vanishing-gradient baselines to gated recurrent memory.
+\section{Phase 4: Hybrid and Attention}
+CNN-LSTM, CNN-GRU, Bi-LSTM with attention, Transformer, Informer, Autoformer, and TFT-style models target non-linear peaks, long context, and interpretability through attention weights.
+\section{Phase 5: Spatio-Temporal Models}
+ST-GCN represents the future scale-out direction. In the current benchmark it is included as a lightweight spatio-temporal proxy over the three-city regional dataset.
+
+
+\chapter{Hyperparameter Catalog (Implemented)}
+\begin{longtable}{@{}llp{9cm}@{}}
+\toprule
+Phase & Model & Hyperparameters and Training Configuration \\
+\midrule
+Phase 1: Statistical Baselines & ARIMA & order=(2,1,2), univariate target series, hourly resolution. \\
+Phase 1: Statistical Baselines & SARIMA & order=(1,1,1), seasonal\_order=(1,0,1,24), enforce\_stationarity=False, enforce\_invertibility=False. \\
+Phase 1: Statistical Baselines & VAR & maxlags=24 with AIC lag selection on multivariate pollutant vector. \\
+Phase 2: Classical ML Ensembles & SVR & C=10.0, gamma='scale', epsilon=0.05, wrapped in MultiOutputRegressor. \\
+Phase 2: Classical ML Ensembles & Random Forest & n\_estimators=180, min\_samples\_leaf=2, random\_state=42, n\_jobs=-1, wrapped in MultiOutputRegressor. \\
+Phase 2: Classical ML Ensembles & XGBoost & n\_estimators=220, max\_depth=4, learning\_rate=0.05, subsample=0.9, colsample\_bytree=0.9, tree\_method='hist', random\_state=42, n\_jobs=-1, wrapped in MultiOutputRegressor. \\
+Phase 2: Classical ML Ensembles & LightGBM & n\_estimators=260, learning\_rate=0.04, num\_leaves=31, subsample=0.9, colsample\_bytree=0.9, random\_state=42, n\_jobs=-1, wrapped in MultiOutputRegressor. \\
+Phase 2: Classical ML Ensembles & CatBoost & iterations=220, depth=5, learning\_rate=0.05, loss\_function='RMSE', verbose=False, wrapped in MultiOutputRegressor. \\
+Phase 3: Standard DL Sequence Models & RNN & 2-layer RNN, hidden\_size=48, batch\_first=True; optimizer AdamW(lr=1e-3, weight\_decay=1e-4), loss=MSE. \\
+Phase 3: Standard DL Sequence Models & LSTM & 2-layer LSTM, hidden\_size=48, batch\_first=True; optimizer AdamW(lr=1e-3, weight\_decay=1e-4), loss=MSE. \\
+Phase 3: Standard DL Sequence Models & GRU & 2-layer GRU, hidden\_size=48, batch\_first=True; optimizer AdamW(lr=1e-3, weight\_decay=1e-4), loss=MSE. \\
+Phase 3: Standard DL Sequence Models & Bi-LSTM & 2-layer bidirectional LSTM, hidden\_size=48; optimizer AdamW(lr=1e-3, weight\_decay=1e-4), loss=MSE. \\
+Phase 4: Hybrid and Attention & CNN-LSTM & Conv1d(in=input\_dim,out=48,k=3,pad=1) + 1-layer LSTM(48->48) + linear horizon head; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & CNN-GRU & Conv1d(in=input\_dim,out=48,k=3,pad=1) + 1-layer GRU(48->48) + linear horizon head; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & Bi-LSTM + Attention & Bi-LSTM(hidden=48) + MultiheadAttention(embed=96, heads=4) + sigmoid gate + linear horizon head; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & Transformer & model\_dim=64, encoder\_layers=2, heads=4, ff\_dim=128, dropout=0.1; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & Informer & lightweight attention model\_dim=48 with compressed sequence blocks; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & Autoformer & decomposition-style lightweight transformer blocks with model\_dim=48; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 4: Hybrid and Attention & Temporal Fusion Transformer & TFT-lite with hidden\_dim=48 and gating heads for multi-horizon output; AdamW(lr=1e-3, wd=1e-4). \\
+Phase 5: Spatio-Temporal Models & ST-GCN & STGCN-lite temporal Conv1d stack + graph gating linear layer, hidden\_dim=48; AdamW(lr=1e-3, wd=1e-4). \\
+\bottomrule
+\end{longtable}
+
+\chapter{Optuna and Hyperparameter Search Notes}
+Current benchmark implementation does \textbf{not} contain an active Optuna optimization loop in the project source.  
+Hyperparameters are currently fixed/manual for reproducibility and speed on benchmark infrastructure.
+
+If Optuna is introduced later, recommended protocol is:
+\begin{itemize}
+  \item objective = validation RMSE minimization with city-specific studies;
+  \item time-budgeted search per model family;
+  \item refit-on-train+val using best trial before test-only final report;
+  \item preserve trial history and seeds for reproducibility.
+\end{itemize}
+
+\chapter{Benchmark Results}
+\begin{longtable}{@{}lllllrrr@{}}
+\toprule
+City & Phase & Model & Family & Status & RMSE & MAE & $R^2$ \\
+\midrule
+bengaluru & Phase 1: Statistical Baselines & ARIMA & statistical & ok & 35.798 & 31.329 & -0.614 \\
+bengaluru & Phase 1: Statistical Baselines & SARIMA & statistical & ok & 39.976 & 35.110 & -1.013 \\
+bengaluru & Phase 1: Statistical Baselines & VAR & statistical & ok & 40.815 & 31.442 & -1.099 \\
+bengaluru & Phase 2: Classical ML Ensembles & CatBoost & classical\_ml & ok & 24.078 & 15.520 & 0.278 \\
+bengaluru & Phase 2: Classical ML Ensembles & XGBoost & classical\_ml & ok & 25.196 & 15.677 & 0.209 \\
+bengaluru & Phase 2: Classical ML Ensembles & SVR & classical\_ml & ok & 25.432 & 16.703 & 0.195 \\
+bengaluru & Phase 2: Classical ML Ensembles & LightGBM & classical\_ml & ok & 25.477 & 15.806 & 0.192 \\
+bengaluru & Phase 2: Classical ML Ensembles & Random Forest & classical\_ml & ok & 26.889 & 16.805 & 0.100 \\
+bengaluru & Phase 3: Standard DL Sequence Models & RNN & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 3: Standard DL Sequence Models & LSTM & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 3: Standard DL Sequence Models & GRU & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 3: Standard DL Sequence Models & Bi-LSTM & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & CNN-LSTM & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & CNN-GRU & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & Bi-LSTM + Attention & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & Transformer & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & Informer & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & Autoformer & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 4: Hybrid and Attention & Temporal Fusion Transformer & deep\_learning & skipped & nan & nan & nan \\
+bengaluru & Phase 5: Spatio-Temporal Models & ST-GCN & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 1: Statistical Baselines & VAR & statistical & ok & 139.171 & 86.877 & -0.322 \\
+delhi & Phase 1: Statistical Baselines & ARIMA & statistical & ok & 139.717 & 86.894 & -0.332 \\
+delhi & Phase 1: Statistical Baselines & SARIMA & statistical & ok & 149.079 & 92.052 & -0.517 \\
+delhi & Phase 2: Classical ML Ensembles & LightGBM & classical\_ml & ok & 73.446 & 44.852 & 0.650 \\
+delhi & Phase 2: Classical ML Ensembles & CatBoost & classical\_ml & ok & 75.608 & 47.146 & 0.629 \\
+delhi & Phase 2: Classical ML Ensembles & XGBoost & classical\_ml & ok & 75.973 & 46.972 & 0.626 \\
+delhi & Phase 2: Classical ML Ensembles & SVR & classical\_ml & ok & 76.212 & 55.549 & 0.623 \\
+delhi & Phase 2: Classical ML Ensembles & Random Forest & classical\_ml & ok & 77.574 & 48.777 & 0.610 \\
+delhi & Phase 3: Standard DL Sequence Models & RNN & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 3: Standard DL Sequence Models & LSTM & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 3: Standard DL Sequence Models & GRU & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 3: Standard DL Sequence Models & Bi-LSTM & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & CNN-LSTM & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & CNN-GRU & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & Bi-LSTM + Attention & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & Transformer & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & Informer & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & Autoformer & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 4: Hybrid and Attention & Temporal Fusion Transformer & deep\_learning & skipped & nan & nan & nan \\
+delhi & Phase 5: Spatio-Temporal Models & ST-GCN & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 1: Statistical Baselines & VAR & statistical & ok & 39.606 & 32.679 & -1.700 \\
+hyderabad & Phase 1: Statistical Baselines & ARIMA & statistical & ok & 55.224 & 50.369 & -4.250 \\
+hyderabad & Phase 1: Statistical Baselines & SARIMA & statistical & ok & 63.639 & 58.854 & -5.972 \\
+hyderabad & Phase 2: Classical ML Ensembles & XGBoost & classical\_ml & ok & 15.290 & 10.630 & 0.587 \\
+hyderabad & Phase 2: Classical ML Ensembles & CatBoost & classical\_ml & ok & 15.485 & 11.107 & 0.576 \\
+hyderabad & Phase 2: Classical ML Ensembles & LightGBM & classical\_ml & ok & 15.841 & 11.015 & 0.556 \\
+hyderabad & Phase 2: Classical ML Ensembles & Random Forest & classical\_ml & ok & 16.436 & 11.552 & 0.523 \\
+hyderabad & Phase 2: Classical ML Ensembles & SVR & classical\_ml & ok & 17.477 & 13.603 & 0.460 \\
+hyderabad & Phase 3: Standard DL Sequence Models & RNN & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 3: Standard DL Sequence Models & LSTM & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 3: Standard DL Sequence Models & GRU & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 3: Standard DL Sequence Models & Bi-LSTM & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & CNN-LSTM & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & CNN-GRU & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & Bi-LSTM + Attention & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & Transformer & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & Informer & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & Autoformer & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 4: Hybrid and Attention & Temporal Fusion Transformer & deep\_learning & skipped & nan & nan & nan \\
+hyderabad & Phase 5: Spatio-Temporal Models & ST-GCN & deep\_learning & skipped & nan & nan & nan \\
+\bottomrule
+\end{longtable}
+
+\chapter{Best Model Per City}
+\textit{Best-model selection will be filled after Kaggle execution.}
+
+\chapter{Per-City Detailed Results}
+\section{Bengaluru}
+This section reports per-model outcomes for this city using the common preprocessing and split policy.
+Best observed model by RMSE: \textbf{CatBoost (RMSE=24.078, MAE=15.520, R2=0.278)}.
+\begin{longtable}{@{}llllrrr@{}}
+\toprule
+Phase & Model & Status & Family & RMSE & MAE & $R^2$ \\
+\midrule
+Phase 1: Statistical Baselines & ARIMA & ok & statistical & 35.798 & 31.329 & -0.614 \\
+Phase 1: Statistical Baselines & SARIMA & ok & statistical & 39.976 & 35.110 & -1.013 \\
+Phase 1: Statistical Baselines & VAR & ok & statistical & 40.815 & 31.442 & -1.099 \\
+Phase 2: Classical ML Ensembles & CatBoost & ok & classical\_ml & 24.078 & 15.520 & 0.278 \\
+Phase 2: Classical ML Ensembles & XGBoost & ok & classical\_ml & 25.196 & 15.677 & 0.209 \\
+Phase 2: Classical ML Ensembles & SVR & ok & classical\_ml & 25.432 & 16.703 & 0.195 \\
+Phase 2: Classical ML Ensembles & LightGBM & ok & classical\_ml & 25.477 & 15.806 & 0.192 \\
+Phase 2: Classical ML Ensembles & Random Forest & ok & classical\_ml & 26.889 & 16.805 & 0.100 \\
+Phase 3: Standard DL Sequence Models & RNN & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & Bi-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Bi-LSTM + Attention & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Informer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Autoformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Temporal Fusion Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 5: Spatio-Temporal Models & ST-GCN & skipped & deep\_learning & nan & nan & nan \\
+\bottomrule
+\end{longtable}
+
+\section{Delhi}
+This section reports per-model outcomes for this city using the common preprocessing and split policy.
+Best observed model by RMSE: \textbf{LightGBM (RMSE=73.446, MAE=44.852, R2=0.650)}.
+\begin{longtable}{@{}llllrrr@{}}
+\toprule
+Phase & Model & Status & Family & RMSE & MAE & $R^2$ \\
+\midrule
+Phase 1: Statistical Baselines & VAR & ok & statistical & 139.171 & 86.877 & -0.322 \\
+Phase 1: Statistical Baselines & ARIMA & ok & statistical & 139.717 & 86.894 & -0.332 \\
+Phase 1: Statistical Baselines & SARIMA & ok & statistical & 149.079 & 92.052 & -0.517 \\
+Phase 2: Classical ML Ensembles & LightGBM & ok & classical\_ml & 73.446 & 44.852 & 0.650 \\
+Phase 2: Classical ML Ensembles & CatBoost & ok & classical\_ml & 75.608 & 47.146 & 0.629 \\
+Phase 2: Classical ML Ensembles & XGBoost & ok & classical\_ml & 75.973 & 46.972 & 0.626 \\
+Phase 2: Classical ML Ensembles & SVR & ok & classical\_ml & 76.212 & 55.549 & 0.623 \\
+Phase 2: Classical ML Ensembles & Random Forest & ok & classical\_ml & 77.574 & 48.777 & 0.610 \\
+Phase 3: Standard DL Sequence Models & RNN & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & Bi-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Bi-LSTM + Attention & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Informer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Autoformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Temporal Fusion Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 5: Spatio-Temporal Models & ST-GCN & skipped & deep\_learning & nan & nan & nan \\
+\bottomrule
+\end{longtable}
+
+\section{Hyderabad}
+This section reports per-model outcomes for this city using the common preprocessing and split policy.
+Best observed model by RMSE: \textbf{XGBoost (RMSE=15.290, MAE=10.630, R2=0.587)}.
+\begin{longtable}{@{}llllrrr@{}}
+\toprule
+Phase & Model & Status & Family & RMSE & MAE & $R^2$ \\
+\midrule
+Phase 1: Statistical Baselines & VAR & ok & statistical & 39.606 & 32.679 & -1.700 \\
+Phase 1: Statistical Baselines & ARIMA & ok & statistical & 55.224 & 50.369 & -4.250 \\
+Phase 1: Statistical Baselines & SARIMA & ok & statistical & 63.639 & 58.854 & -5.972 \\
+Phase 2: Classical ML Ensembles & XGBoost & ok & classical\_ml & 15.290 & 10.630 & 0.587 \\
+Phase 2: Classical ML Ensembles & CatBoost & ok & classical\_ml & 15.485 & 11.107 & 0.576 \\
+Phase 2: Classical ML Ensembles & LightGBM & ok & classical\_ml & 15.841 & 11.015 & 0.556 \\
+Phase 2: Classical ML Ensembles & Random Forest & ok & classical\_ml & 16.436 & 11.552 & 0.523 \\
+Phase 2: Classical ML Ensembles & SVR & ok & classical\_ml & 17.477 & 13.603 & 0.460 \\
+Phase 3: Standard DL Sequence Models & RNN & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 3: Standard DL Sequence Models & Bi-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-LSTM & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & CNN-GRU & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Bi-LSTM + Attention & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Informer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Autoformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 4: Hybrid and Attention & Temporal Fusion Transformer & skipped & deep\_learning & nan & nan & nan \\
+Phase 5: Spatio-Temporal Models & ST-GCN & skipped & deep\_learning & nan & nan & nan \\
+\bottomrule
+\end{longtable}
+
+
+\chapter{Metric Interpretation}
+\begin{itemize}
+  \item RMSE emphasizes large forecast misses and is primary for winner selection.
+  \item MAE is robust to single extreme errors and useful for practical absolute error.
+  \item $R^2$ can be negative when model underperforms a simple mean baseline on the test window.
+  \item F1-score, precision, and recall are classification metrics and are intentionally excluded for this regression benchmark.
+\end{itemize}
+
+\chapter{Deployment Path}
+The Kaggle benchmark writes \texttt{forecast\_rows.csv}. After review, the file is loaded into \texttt{aq.forecasts} with
+\texttt{python scripts/load\_forecasts\_to\_db.py --csv outputs/kaggle\_benchmarks/forecast\_rows.csv}.
+The Next.js dashboard reads \texttt{aq.hourly\_aggregates} for actuals and \texttt{aq.forecasts} for the best-model prediction horizon.
+
+\chapter{Presentation and Terminology References}
+For wording and taxonomy style in model-family discussion, these curated references are aligned with your requested presentation direction:
+\begin{itemize}
+  \item \href{https://github.com/josephmisiti/awesome-machine-learning}{Awesome Machine Learning}
+  \item \href{https://github.com/ChristosChristofidis/awesome-deep-learning}{Awesome Deep Learning}
+\end{itemize}
+
+\end{document}

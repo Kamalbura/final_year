@@ -1,0 +1,111 @@
+{
+  "target_cities": [
+    "delhi",
+    "hyderabad",
+    "bengaluru"
+  ],
+  "features": [
+    "pm2_5",
+    "pm10",
+    "carbon_monoxide",
+    "nitrogen_dioxide",
+    "ozone"
+  ],
+  "target": "us_aqi",
+  "cadence": "hourly",
+  "source": "Open-Meteo Air Quality API",
+  "feature_policy": "Five pollutant inputs only; historical us_aqi is the prediction target, not a supervised input.",
+  "imputation": [
+    "linear interpolation up to 6 hours",
+    "forward/backward fill up to 24 hours",
+    "monthly median fallback",
+    "global median fallback"
+  ],
+  "city_audits": [
+    {
+      "city": "delhi",
+      "source_file": "data\\india_aq_1y\\delhi_aq_1y.csv",
+      "output_file": "data\\kaggle_dataset\\clean_delhi_aq_1y.csv",
+      "source_rows": 8784,
+      "output_rows": 8784,
+      "first_timestamp": "2025-04-25T00:00:00+00:00",
+      "last_timestamp": "2026-04-25T23:00:00+00:00",
+      "expected_hours": 8784,
+      "missing_timestamps_after_resample": 0,
+      "duplicate_timestamps": 0,
+      "missing_before": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      },
+      "missing_after": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      }
+    },
+    {
+      "city": "hyderabad",
+      "source_file": "data\\india_aq_1y\\hyderabad_aq_1y.csv",
+      "output_file": "data\\kaggle_dataset\\clean_hyderabad_aq_1y.csv",
+      "source_rows": 8784,
+      "output_rows": 8784,
+      "first_timestamp": "2025-04-25T00:00:00+00:00",
+      "last_timestamp": "2026-04-25T23:00:00+00:00",
+      "expected_hours": 8784,
+      "missing_timestamps_after_resample": 0,
+      "duplicate_timestamps": 0,
+      "missing_before": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      },
+      "missing_after": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      }
+    },
+    {
+      "city": "bengaluru",
+      "source_file": "data\\india_aq_1y\\bengaluru_aq_1y.csv",
+      "output_file": "data\\kaggle_dataset\\clean_bengaluru_aq_1y.csv",
+      "source_rows": 8784,
+      "output_rows": 8784,
+      "first_timestamp": "2025-04-25T00:00:00+00:00",
+      "last_timestamp": "2026-04-25T23:00:00+00:00",
+      "expected_hours": 8784,
+      "missing_timestamps_after_resample": 0,
+      "duplicate_timestamps": 0,
+      "missing_before": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      },
+      "missing_after": {
+        "pm2_5": 0,
+        "pm10": 0,
+        "carbon_monoxide": 0,
+        "nitrogen_dioxide": 0,
+        "ozone": 0,
+        "us_aqi": 0
+      }
+    }
+  ],
+  "benchmark_script": "kaggle_benchmarking_suite.py"
+}

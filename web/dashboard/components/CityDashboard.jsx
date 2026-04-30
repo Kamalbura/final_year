@@ -114,7 +114,7 @@ export default function CityDashboard({ citySlug }) {
           </h1>
           <p
             className="location"
-            style={{ color: "#d7e2f0", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
+            style={{ color: "var(--muted)", textShadow: "0 1px 1px rgba(0, 0, 0, 0.25)" }}
           >
             {city.country}
           </p>
@@ -169,16 +169,28 @@ export default function CityDashboard({ citySlug }) {
         <h2>AQI Trend</h2>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis yAxisId="left" label={{ value: "AQI", angle: -90, position: "insideLeft" }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" />
+            <XAxis dataKey="time" tick={{ fill: "var(--muted)" }} axisLine={{ stroke: "rgba(255, 255, 255, 0.14)" }} tickLine={{ stroke: "rgba(255, 255, 255, 0.14)" }} />
+            <YAxis yAxisId="left" tick={{ fill: "var(--muted)" }} axisLine={{ stroke: "rgba(255, 255, 255, 0.14)" }} tickLine={{ stroke: "rgba(255, 255, 255, 0.14)" }} label={{ value: "AQI", angle: -90, position: "insideLeft", fill: "var(--muted)" }} />
             <YAxis
               yAxisId="right"
               orientation="right"
-              label={{ value: "µg/m³", angle: 90, position: "insideRight" }}
+              tick={{ fill: "var(--muted)" }}
+              axisLine={{ stroke: "rgba(255, 255, 255, 0.14)" }}
+              tickLine={{ stroke: "rgba(255, 255, 255, 0.14)" }}
+              label={{ value: "µg/m³", angle: 90, position: "insideRight", fill: "var(--muted)" }}
             />
-            <Tooltip />
-            <Legend />
+            <Tooltip
+              contentStyle={{
+                background: "rgba(8, 15, 27, 0.96)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: 14,
+                color: "var(--text)",
+              }}
+              labelStyle={{ color: "var(--text)" }}
+              itemStyle={{ color: "var(--text)" }}
+            />
+            <Legend wrapperStyle={{ color: "var(--muted)" }} />
             <Line
               yAxisId="left"
               type="monotone"
@@ -246,9 +258,9 @@ export default function CityDashboard({ citySlug }) {
         <div className="right">
           <ResponsiveContainer width="100%" height={300}>
             <RadarChart data={pollutantData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="name" />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} />
+              <PolarGrid stroke="rgba(255, 255, 255, 0.12)" />
+              <PolarAngleAxis dataKey="name" tick={{ fill: "var(--muted)" }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: "var(--muted)" }} axisLine={{ stroke: "rgba(255, 255, 255, 0.14)" }} />
               <Radar name="Pollutant Level" dataKey="value" stroke={aqi_category.color} fill={aqi_category.color} fillOpacity={0.6} />
             </RadarChart>
           </ResponsiveContainer>
@@ -298,23 +310,26 @@ export default function CityDashboard({ citySlug }) {
         .title-section h1 {
           font-size: 2.5rem;
           margin: 0;
-          color: #f8fafc;
+          color: var(--text);
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .title-section .location {
           margin: 5px 0 0 0;
-          color: #cbd5e1;
+          color: var(--muted);
         }
 
         .current-status {
           border: 3px solid;
-          border-radius: 12px;
+          border-radius: 16px;
           padding: 20px;
-          background: #f9fafb;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+          border-color: rgba(255, 255, 255, 0.12);
           display: flex;
           align-items: center;
           gap: 20px;
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(16px);
         }
 
         .aqi-display {
@@ -330,11 +345,11 @@ export default function CityDashboard({ citySlug }) {
         .aqi-display .value {
           font-size: 2.5rem;
           font-weight: bold;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .aqi-display .label {
-          color: #6b7280;
+          color: var(--muted);
           font-size: 0.875rem;
         }
 
@@ -355,7 +370,7 @@ export default function CityDashboard({ citySlug }) {
         }
 
         .status span {
-          color: #374151;
+          color: var(--muted);
           font-size: 0.875rem;
         }
 
@@ -381,36 +396,39 @@ export default function CityDashboard({ citySlug }) {
 
         .time-range-selector button {
           padding: 8px 16px;
-          border: 1px solid #d1d5db;
-          background: white;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
           border-radius: 6px;
           cursor: pointer;
           font-size: 0.875rem;
           font-weight: 500;
           transition: all 0.2s;
+          color: var(--text);
         }
 
         .time-range-selector button:hover {
-          background: #f3f4f6;
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .time-range-selector button.active {
-          background: #3b82f6;
+          background: linear-gradient(135deg, var(--accent), var(--accent-2));
           color: white;
-          border-color: #3b82f6;
+          border-color: transparent;
         }
 
         .chart-section {
-          background: white;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
           padding: 20px;
-          border-radius: 8px;
+          border-radius: 16px;
           margin-bottom: 30px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          box-shadow: var(--shadow);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(16px);
         }
 
         .chart-section h2 {
           margin: 0 0 20px 0;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .pollutants-section {
@@ -423,14 +441,16 @@ export default function CityDashboard({ citySlug }) {
         .pollutants-section h2 {
           grid-column: 1;
           margin: 0 0 10px 0;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .pollutant-list {
-          background: white;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
           padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          box-shadow: var(--shadow);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(16px);
           display: grid;
           gap: 12px;
         }
@@ -440,7 +460,7 @@ export default function CityDashboard({ citySlug }) {
           justify-content: space-between;
           align-items: center;
           padding: 10px 0;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .pollutant-item:last-child {
@@ -449,40 +469,44 @@ export default function CityDashboard({ citySlug }) {
 
         .pollutant-item .label {
           font-weight: 600;
-          color: #1f2937;
+          color: var(--text);
           min-width: 50px;
         }
 
         .pollutant-item .value {
           font-size: 1.25rem;
           font-weight: bold;
-          color: #3b82f6;
+          color: var(--accent);
         }
 
         .pollutant-item .unit {
           font-size: 0.75rem;
-          color: #6b7280;
+          color: var(--muted);
           margin-left: 8px;
         }
 
         .pollutants-section .right {
-          background: white;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
           padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          box-shadow: var(--shadow);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(16px);
         }
 
         .advisory-section {
-          background: white;
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
           padding: 20px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          box-shadow: var(--shadow);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(16px);
           margin-bottom: 30px;
         }
 
         .advisory-section h2 {
           margin: 0 0 20px 0;
-          color: #1f2937;
+          color: var(--text);
         }
 
         .advisory-content {
@@ -494,29 +518,40 @@ export default function CityDashboard({ citySlug }) {
         .advisory-content .group h3 {
           margin: 0 0 10px 0;
           font-size: 1rem;
-          color: #374151;
+          color: var(--text);
         }
 
         .advisory-content .group p {
           margin: 0;
-          color: #4b5563;
+          color: var(--muted);
           line-height: 1.5;
           font-size: 0.875rem;
         }
 
         .footer {
           text-align: center;
-          color: #9ca3af;
+          color: var(--muted);
           font-size: 0.875rem;
           padding-top: 20px;
         }
 
         .loading,
         .error {
-          padding: 20px;
+          max-width: 1200px;
+          margin: 20px auto;
+          padding: 22px 20px;
           text-align: center;
           font-size: 1rem;
-          color: #374151;
+          color: var(--text);
+          background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          box-shadow: var(--shadow);
+          backdrop-filter: blur(16px);
+        }
+
+        .error {
+          color: #ffb3b3;
         }
 
         @media (max-width: 768px) {

@@ -10,10 +10,10 @@ x-airflow-common: &airflow-common
     PYTHONPATH: /opt/final_year
     _PIP_ADDITIONAL_REQUIREMENTS: pandas requests
   volumes:
-    - ./dags:/opt/airflow/dags
+    - ${FINAL_YEAR_ROOT:-../..}/deployment/pi_airflow/dags:/opt/airflow/dags
     - airflow-logs:/opt/airflow/logs
     - airflow-plugins:/opt/airflow/plugins
-    - ../..:/opt/final_year
+    - ${FINAL_YEAR_ROOT:-../..}:/opt/final_year
   depends_on:
     postgres:
       condition: service_healthy
@@ -43,17 +43,22 @@ services:
       - -c
       - |
         airflow db migrate && \
-        airflow users create \
+        (airflow users create \
           --username admin \
           --password admin \
           --firstname Burak \
           --lastname Admin \
           --role Admin \
-          --email admin@example.com
+          --email admin@example.com || true)
 
   airflow-webserver:
     <<: *airflow-common
     command: webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     restart: unless-stopped
@@ -61,14 +66,56 @@ services:
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   airflow-triggerer:
     <<: *airflow-common
     command: triggerer
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    image: node:20-alpine
+    working_dir: /opt/final_year/web/dashboard
+    command: sh -lc "npm ci && npm run build && npm start"
+    environment:
+      AQ_DB_HOST: postgres
+      AQ_DB_PORT: 5432
+      AQ_DB_NAME: airflow
+      AQ_DB_USER: airflow
+      AQ_DB_PASSWORD: airflow
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      DASHBOARD_PROJECT_ROOT: /opt/final_year
+      NODE_ENV: production
+    volumes:
+      - ${FINAL_YEAR_ROOT:-../..}:/opt/final_year
+      - dashboard-node-modules:/opt/final_year/web/dashboard/node_modules
+      - dashboard-next-cache:/opt/final_year/web/dashboard/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   postgres-db-volume:
   airflow-logs:
   airflow-plugins:
+  dashboard-node-modules:
+  dashboard-next-cache:

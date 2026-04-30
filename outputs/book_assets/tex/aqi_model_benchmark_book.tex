@@ -1,0 +1,128 @@
+\documentclass[11pt,a4paper,oneside]{book}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xurl}
+\usepackage{microtype}
+\usepackage{lmodern}
+\geometry{margin=1in}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{0pt}
+\setlength{\tabcolsep}{4pt}
+\setlength{\emergencystretch}{3em}
+\sloppy
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=cyan, pdftitle={AQI Benchmark Book (Local + Kaggle)}}
+
+\title{\Huge\textbf{AQI Model Benchmark Book}\\\Large Local PC + Kaggle Execution Audit}
+\author{Final Year AQI Platform}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+
+\chapter{Executive Summary}
+This report audits both Kaggle and local-PC training outputs and presents a clean, publication-ready summary.
+
+\begin{itemize}
+  \item Total benchmark rows discovered: 360
+  \item \texttt{status=ok}: 180
+  \item \texttt{status=skipped}: 180
+  \item \texttt{status=failed}: 0
+\end{itemize}
+
+F1-score is intentionally not used because this is a regression problem (continuous AQI forecasting), not classification.
+
+\chapter{Run Source Inventory}
+\small
+\begin{longtable}{@{}L{3.2cm}L{1.5cm}L{2.2cm}L{1.0cm}L{1.0cm}L{1.2cm}L{1.0cm}@{}}
+\toprule
+Source & Env & Timestamp & Rows & OK & Skipped & Failed \\
+\midrule
+kaggle\_benchmarks & kaggle & 2026-04-27 13:44 & 60 & 24 & 36 & 0 \\
+kaggle\_kernel\_latest & kaggle & 2026-04-27 13:44 & 60 & 24 & 36 & 0 \\
+local\_smoke\_bench & local\_pc & 2026-04-26 14:40 & 60 & 60 & 0 & 0 \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\chapter{Execution Audit: Did Models Actually Run?}
+\footnotesize
+\begin{longtable}{@{}L{2.8cm}L{1.8cm}L{1.0cm}L{1.0cm}L{1.0cm}L{3.6cm}@{}}
+\toprule
+Source & Environment & OK & Skipped & Failed & Audit Note \\
+\midrule
+kaggle\_benchmarks & Kaggle & 24 & 36 & 0 & Deep-learning families skipped in this run context. \\
+kaggle\_kernel\_latest & Kaggle & 24 & 36 & 0 & Same skip pattern; classical/statistical families completed. \\
+local\_smoke\_bench & Local PC & 60 & 0 & 0 & All families executed in local smoke profile. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\paragraph{Representative skip reason from Kaggle logs}
+CUDA error: \texttt{no kernel image is available for execution on the device}.  
+Interpretation: the specific CUDA build/device configuration used by that run cannot execute the deep model kernels.
+
+\chapter{Top Results Per Source and City}
+\footnotesize
+\begin{longtable}{@{}L{3.1cm}L{1.5cm}L{2.2cm}L{1.7cm}L{0.9cm}L{0.9cm}L{0.8cm}@{}}
+\toprule
+Source & City & Best Model Family & Model & RMSE & MAE & R2 \\
+\midrule
+kaggle\_benchmarks & delhi & Classical ML & LightGBM & 73.45 & 44.85 & 0.65 \\
+kaggle\_benchmarks & hyderabad & Classical ML & XGBoost & 15.29 & 10.63 & 0.59 \\
+kaggle\_benchmarks & bengaluru & Classical ML & CatBoost & 24.08 & 15.52 & 0.28 \\
+kaggle\_kernel\_latest & delhi & Classical ML & LightGBM & 73.45 & 44.85 & 0.65 \\
+kaggle\_kernel\_latest & hyderabad & Classical ML & XGBoost & 15.29 & 10.63 & 0.59 \\
+kaggle\_kernel\_latest & bengaluru & Classical ML & CatBoost & 24.08 & 15.52 & 0.28 \\
+local\_smoke\_bench & delhi & Classical ML & SVR & 80.12 & 69.17 & 0.74 \\
+local\_smoke\_bench & hyderabad & Hybrid/Attention & Transformer & 27.73 & 22.63 & -0.00 \\
+local\_smoke\_bench & bengaluru & Statistical & ARIMA & 35.80 & 31.33 & -0.61 \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\chapter{Local Individual Trainer Runs (Non-Kaggle)}
+These are dedicated local runs in \texttt{outputs/individual\_trainers}.
+\footnotesize
+\begin{longtable}{@{}L{1.4cm}L{1.5cm}L{2.6cm}L{0.9cm}L{0.9cm}L{6.5cm}@{}}
+\toprule
+City & Model & Timestamp & RMSE & MAE & Hyperparameter Config \\
+\midrule
+bengaluru & LSTM & 2026-04-27 17:23:07 & 24.01 & 18.10 & h=62, layers=2, heads=-, lr=2.16e-3, drop=0.406, epochs=20 \\
+hyderabad & Transformer & 2026-04-27 17:16:47 & 17.44 & 12.98 & h=32, layers=1, heads=2, lr=6.97e-3, drop=0.114, epochs=20 \\
+hyderabad & LSTM & 2026-04-27 17:11:24 & 18.60 & 14.04 & h=35, layers=2, heads=-, lr=9.02e-4, drop=0.110, epochs=20 \\
+delhi & Transformer & 2026-04-27 17:10:41 & 87.73 & 57.85 & h=32, layers=3, heads=4, lr=1.70e-4, drop=0.354, epochs=20 \\
+delhi & LSTM & 2026-04-27 17:08:25 & 121.26 & 91.90 & h=98, layers=2, heads=-, lr=4.94e-3, drop=0.139, epochs=20 \\
+bengaluru & Transformer & 2026-04-27 16:41:46 & 29.25 & 19.92 & h=64, layers=2, heads=2, lr=2.27e-3, drop=0.329, epochs=20 \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\chapter{Raw Data Location}
+The full row-level benchmark tables are kept in CSV for traceability and reproducibility:
+\begin{itemize}
+  \item \texttt{outputs/kaggle\_benchmarks/benchmark\_summary.csv}
+  \item \path{outputs/kaggle_kernel_latest/outputs/kaggle_benchmarks/benchmark_summary.csv}
+  \item \texttt{outputs/smoke\_bench/benchmark\_summary.csv}
+\end{itemize}
+
+\chapter{Interpretation and Validation Notes}
+\begin{itemize}
+  \item A skipped model in a source does not mean globally untrained; it means unexecuted in that specific run context.
+  \item Local smoke run demonstrates end-to-end executability on this PC.
+  \item Kaggle runs indicate classical/statistical baselines are stable; deep families require environment/kernel compatibility fixes.
+  \item For thesis reporting, use one canonical benchmark source per environment and avoid mixing duplicated rows.
+\end{itemize}
+
+\chapter{References}
+\begin{itemize}
+  \item \href{https://github.com/josephmisiti/awesome-machine-learning}{Awesome Machine Learning}
+  \item \href{https://github.com/ChristosChristofidis/awesome-deep-learning}{Awesome Deep Learning}
+\end{itemize}
+
+\end{document}

@@ -93,7 +93,7 @@ class IndiaAqIngestionTests(unittest.TestCase):
 
         dag_ids = [dag_id_for_city(city) for city in catalog]
         self.assertEqual(len(dag_ids), len(set(dag_ids)))
-        self.assertEqual(dag_ids[0], f"aq_{INDIA_MAJOR_CITIES[0].slug}_incremental_6h")
+        self.assertEqual(dag_ids[0], f"aq_{INDIA_MAJOR_CITIES[0].slug}_incremental_hourly")
 
 
 if __name__ == "__main__":

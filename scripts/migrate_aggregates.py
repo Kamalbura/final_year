@@ -15,9 +15,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
-
 # SQL migrations
 
 MIGRATION_1_HOURLY_AGGREGATES = """
@@ -173,7 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_forecasts_verification
     ON aq.forecasts (verified_at DESC) WHERE verified_at IS NOT NULL;
 
 -- View for forecast accuracy tracking
-CREATE VIEW IF NOT EXISTS aq.forecast_accuracy AS
+CREATE OR REPLACE VIEW aq.forecast_accuracy AS
 SELECT
     city_slug,
     city_name,
@@ -182,10 +179,9 @@ SELECT
     COUNT(verified_at) as verified_count,
     ROUND(AVG(ABS(prediction_error))::NUMERIC, 2) as mean_absolute_error,
     ROUND(STDDEV(ABS(prediction_error))::NUMERIC, 2) as stddev_error,
-    ROUND(
-        100.0 * STDDEV(ABS(prediction_error)) / NULLIF(AVG(ABS(prediction_error)), 0),
-        2
-    ) as error_coefficient_variation,
+    ROUND((
+        100.0 * STDDEV(ABS(prediction_error)) / NULLIF(AVG(ABS(prediction_error)), 0)
+    )::NUMERIC, 2) as error_coefficient_variation,
     MAX(verified_at) as last_verified
 FROM aq.forecasts
 WHERE verified_at IS NOT NULL
@@ -252,10 +248,11 @@ def run_migrations(connection):
         try:
             cursor.execute(sql)
             connection.commit()
-            print(f"✓ {name}")
+            print(f"OK {name}")
         except Exception as e:
             connection.rollback()
-            print(f"✗ {name}: {e}")
+            print(f"FAILED {name}: {e}")
+            raise
 
 def refresh_materialized_views(connection):
     """Refresh all materialized views."""
@@ -270,21 +267,24 @@ def refresh_materialized_views(connection):
     
     for view_name in views:
         try:
-            cursor.execute(f"REFRESH MATERIALIZED VIEW CONCURRENTLY {view_name}")
+            cursor.execute(f"REFRESH MATERIALIZED VIEW {view_name}")
             connection.commit()
-            print(f"✓ Refreshed {view_name}")
+            print(f"OK Refreshed {view_name}")
         except Exception as e:
             connection.rollback()
-            print(f"✗ Refreshed {view_name}: {e}")
+            print(f"FAILED Refreshed {view_name}: {e}")
+            raise
 
 if __name__ == "__main__":
-    from src.ingestion.india_aq import IngestionSettings
+    from src.ingestion.india_aq import IngestionSettings, connect, ensure_schema
     
     settings = IngestionSettings.from_env()
     
     try:
-        conn = settings.postgres_dsn_conn()
+        conn = connect(settings.dsn)
         print("Connected to PostgreSQL")
+
+        ensure_schema(conn, settings.schema_name)
         
         print("\n=== Running Migrations ===")
         run_migrations(conn)
@@ -293,8 +293,8 @@ if __name__ == "__main__":
         refresh_materialized_views(conn)
         
         conn.close()
-        print("\n✓ Database setup complete!")
+        print("\nOK Database setup complete!")
         
     except Exception as e:
-        print(f"✗ Error: {e}")
+        print(f"FAILED Error: {e}")
         sys.exit(1)

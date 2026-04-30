@@ -50,6 +50,8 @@ graphify-out/
 .env
 .env.local
 config.local.yaml
+kaggle.json
+kaggle*.json
 
 # Logs
 *.log

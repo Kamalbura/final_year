@@ -1,0 +1,18 @@
+{
+  "id": "kamalbura/aqi-final-year",
+  "title": "aqi-final-year",
+  "code_file": "aqi-final-year.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "keywords": [],
+  "dataset_sources": [
+    "kamalbura/indian-air-quality-3-city-benchmark-1y"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [],
+  "model_sources": []
+}
