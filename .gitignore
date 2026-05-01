@@ -43,6 +43,25 @@ deployment/graphiti/
 # Cache & build artifacts
 .graphify_cache/
 graphify-out/
+outputs/**/*.joblib
+outputs/**/*.pth
+outputs/**/*.pt
+outputs/**/*.npy
+outputs/**/*.csv
+outputs/**/*.json
+outputs/**/*.tsv
+outputs/**/*.png
+outputs/**/*.pdf
+outputs/**/*.docx
+outputs/**/*.doc
+outputs/**/*.log
+deployment_models/**/*.joblib
+deployment_models/**/*.pth
+deployment_models/**/*.pt
+deployment_models/**/*.npy
+deployment_models/**/*.json
+web/dashboard/node_modules/
+web/dashboard/.next/
 *.cache
 .cache/
 node_modules/
