@@ -1,0 +1,320 @@
+\chapter{System Design}
+
+\section{System Architecture Overview}
+
+The forecasting system follows a modular, pipeline-based architecture organized into five distinct stages: data ingestion, preprocessing, model training and optimization, evaluation, and deployment. Figure~\ref{fig:arch_overview} illustrates the overall system architecture.
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.9\textwidth}
+\centering
+\vspace{0.2in}
+\textbf{Data Ingestion} $\rightarrow$ \textbf{Preprocessing} $\rightarrow$ \textbf{Model Training} $\rightarrow$ \textbf{Evaluation} $\rightarrow$ \textbf{Deployment}
+\vspace{0.1in}
+
+Open-Meteo API $\rightarrow$ Raw CSV $\rightarrow$ Normalized Tensors $\rightarrow$ 14 Trained Models $\rightarrow$ ONNX + Pi
+\vspace{0.2in}
+\end{minipage}}
+\caption{High-Level System Architecture}
+\label{fig:arch_overview}
+\end{figure}
+
+\section{Data Pipeline Design}
+
+\subsection{Data Ingestion}
+
+The data ingestion module interfaces with the Open-Meteo Air Quality API (\texttt{https://air-quality-api.open-meteo.com/v1/air-quality}) to fetch hourly observations. The API returns JSON responses containing the specified pollutant concentrations and meteorological parameters for the requested geographic coordinates (Hyderabad: 17.3850\textdegree N, 78.4867\textdegree E).
+
+Key design decisions include:
+\begin{itemize}
+    \item \textbf{Minimal API calls}: One API call retrieves the full year of historical data, minimizing network overhead.
+    \item \textbf{Structured storage}: Data is cached locally as CSV files for reproducibility and offline access.
+    \item \textbf{Timestamp handling}: All timestamps are converted to UTC and indexed for consistent temporal operations.
+\end{itemize}
+
+\subsection{Data Preprocessing}
+
+The preprocessing pipeline performs the following operations in sequence:
+
+\begin{enumerate}
+    \item \textbf{Missing Value Imputation}: Gaps in the time series are identified and filled using linear interpolation. This preserves temporal continuity without introducing artifacts.
+    \item \textbf{Feature Selection}: Seven pollutant features (PM$_{2.5}$, PM$_{10}$, CO, NO$_2$, SO$_2$, O$_3$, European AQI) are selected as input features. PM$_{2.5}$ is designated as the target variable.
+    \item \textbf{Normalization}: Min-Max scaling is applied to all features, transforming them to the [0, 1] range:
+    \begin{equation}
+        x_{\text{scaled}} = \frac{x - x_{\min}}{x_{\max} - x_{\min}}
+    \end{equation}
+    \item \textbf{Sliding Window Construction}: Input-output pairs are created using a 168-hour sliding window (7 days of history) to predict the next 24 hours. For a time series of length $T$, this yields $T - 168 - 24$ training samples.
+\end{enumerate}
+
+\subsection{Data Splitting Strategy}
+
+The dataset is split chronologically rather than randomly to respect temporal ordering and prevent look-ahead bias:
+\begin{itemize}
+    \item Training: 70\% (samples 0--6,149)
+    \item Validation: 15\% (samples 6,150--7,466)
+    \item Test: 15\% (samples 7,467--8,784)
+\end{itemize}
+
+\section{Model Architectures}
+
+This section presents the detailed architecture of each of the 14 forecasting models evaluated in this study. All deep learning models share a common input-output interface: input tensors of shape $(B, 168, 7)$ where $B$ is batch size, 168 is the lookback window, and 7 is the number of features; output tensors of shape $(B, 24)$ representing the 24-hour PM$_{2.5}$ forecast.
+
+\subsection{ARIMA (AutoRegressive Integrated Moving Average)}
+
+The ARIMA model, denoted as ARIMA$(p, d, q)$, is defined by three parameters: $p$ (autoregressive order), $d$ (degree of differencing), and $q$ (moving average order). The model can be expressed as:
+
+\begin{equation}
+    \phi(B)(1 - B)^d y_t = \theta(B)\varepsilon_t
+\end{equation}
+
+where $B$ is the backshift operator, $\phi(B) = 1 - \phi_1 B - \cdots - \phi_p B^p$ is the AR polynomial, $\theta(B) = 1 + \theta_1 B + \cdots + \theta_q B^q$ is the MA polynomial, and $\varepsilon_t \sim \mathcal{N}(0, \sigma^2)$ is white noise.
+
+For our implementation, we selected ARIMA(5, 1, 2) after grid search optimization. ARIMA is a univariate model, using only the historical PM$_{2.5}$ values for prediction, ignoring other pollutant features.
+
+\subsection{SARIMA (Seasonal ARIMA)}
+
+SARIMA extends ARIMA by incorporating seasonal components, denoted as SARIMA$(p, d, q)(P, D, Q)_s$:
+
+\begin{equation}
+    \phi(B)\Phi(B^s)(1 - B)^d(1 - B^s)^D y_t = \theta(B)\Theta(B^s)\varepsilon_t
+\end{equation}
+
+where $\Phi(B^s)$ and $\Theta(B^s)$ are the seasonal AR and MA polynomials, $s$ is the seasonal period, and $P, D, Q$ are the seasonal orders. We used SARIMA(2, 1, 1)(1, 1, 1)$_{24}$, with a 24-hour seasonal period corresponding to the diurnal cycle.
+
+\subsection{VAR (Vector Autoregression)}
+
+VAR models the joint dynamics of multiple time series. A VAR($p$) model with $k$ variables is expressed as:
+
+\begin{equation}
+    \mathbf{y}_t = \mathbf{c} + \mathbf{A}_1 \mathbf{y}_{t-1} + \cdots + \mathbf{A}_p \mathbf{y}_{t-p} + \boldsymbol{\varepsilon}_t
+\end{equation}
+
+where $\mathbf{y}_t \in \mathbb{R}^k$, $\mathbf{c}$ is a constant vector, each $\mathbf{A}_i \in \mathbb{R}^{k \times k}$ is a coefficient matrix, and $\boldsymbol{\varepsilon}_t \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Sigma})$. We used VAR(2) with $k = 7$ variables (all pollutant features plus target).
+
+\subsection{Simple RNN}
+
+The vanilla RNN processes sequential data through a recurrent hidden state:
+
+\begin{equation}
+    \mathbf{h}_t = \tanh(\mathbf{W}_{ih} \mathbf{x}_t + \mathbf{b}_{ih} + \mathbf{W}_{hh} \mathbf{h}_{t-1} + \mathbf{b}_{hh})
+\end{equation}
+
+Our RNN implementation uses 2 recurrent layers with 128 hidden units each and dropout of 0.2 between layers. The final hidden state is passed through a linear layer to produce the 24-hour forecast.
+
+\subsection{LSTM (Long Short-Term Memory)}
+
+LSTM addresses the vanishing gradient problem through a gating mechanism with three gates:
+
+\begin{align}
+    \mathbf{f}_t &= \sigma(\mathbf{W}_f \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_f) \quad \text{(forget gate)} \\
+    \mathbf{i}_t &= \sigma(\mathbf{W}_i \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_i) \quad \text{(input gate)} \\
+    \mathbf{o}_t &= \sigma(\mathbf{W}_o \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_o) \quad \text{(output gate)} \\
+    \tilde{\mathbf{c}}_t &= \tanh(\mathbf{W}_c \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_c) \quad \text{(candidate cell)} \\
+    \mathbf{c}_t &= \mathbf{f}_t \odot \mathbf{c}_{t-1} + \mathbf{i}_t \odot \tilde{\mathbf{c}}_t \quad \text{(cell state)} \\
+    \mathbf{h}_t &= \mathbf{o}_t \odot \tanh(\mathbf{c}_t) \quad \text{(hidden state)}
+\end{align}
+
+where $\sigma$ is the sigmoid activation and $\odot$ denotes element-wise multiplication. Our LSTM uses 2 layers, 128 hidden units, and dropout of 0.2. The model has 147,073 trainable parameters.
+
+\subsection{GRU (Gated Recurrent Unit)}
+
+GRU simplifies the LSTM by merging the cell state and hidden state, and combining the forget and input gates into a single update gate:
+
+\begin{align}
+    \mathbf{z}_t &= \sigma(\mathbf{W}_z \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_z) \quad \text{(update gate)} \\
+    \mathbf{r}_t &= \sigma(\mathbf{W}_r \cdot [\mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_r) \quad \text{(reset gate)} \\
+    \tilde{\mathbf{h}}_t &= \tanh(\mathbf{W}_h \cdot [\mathbf{r}_t \odot \mathbf{h}_{t-1}, \mathbf{x}_t] + \mathbf{b}_h) \quad \text{(candidate hidden)} \\
+    \mathbf{h}_t &= (1 - \mathbf{z}_t) \odot \mathbf{h}_{t-1} + \mathbf{z}_t \odot \tilde{\mathbf{h}}_t
+\end{align}
+
+Our GRU implementation uses 2 layers, 128 hidden units, and dropout of 0.2, resulting in 110,593 parameters --- 25\% fewer than the equivalent LSTM.
+
+\subsection{BiLSTM (Bidirectional LSTM)}
+
+BiLSTM processes the input sequence in both forward and backward directions, concatenating the hidden states:
+
+\begin{equation}
+    \mathbf{h}_t^{\text{bi}} = [\overrightarrow{\mathbf{h}}_t ; \overleftarrow{\mathbf{h}}_t]
+\end{equation}
+
+This doubles the effective hidden dimension, enabling the model to capture context from both past and future time steps within the lookback window. Our BiLSTM uses 2 bidirectional LSTM layers with 128 hidden units per direction, resulting in 491,521 parameters.
+
+\subsection{CNN-LSTM}
+
+The CNN-LSTM architecture combines 1D convolutional feature extraction with LSTM temporal modeling:
+
+\begin{enumerate}
+    \item \textbf{Convolutional Block}: Two 1D convolutional layers with 64 and 128 filters (kernel size 3), each followed by ReLU activation and dropout (0.2). This extracts local temporal patterns from the input window.
+    \item \textbf{LSTM Block}: Two LSTM layers with 128 hidden units process the convolved features, capturing long-range dependencies.
+    \item \textbf{Output Layer}: A fully connected layer maps the final LSTM hidden state to 24 output predictions.
+\end{enumerate}
+
+The convolutional front-end effectively reduces the sequence length while preserving salient features, making the subsequent LSTM processing more efficient.
+
+\subsection{CNN-GRU}
+
+CNN-GRU follows the same architectural pattern as CNN-LSTM but substitutes GRU layers for the recurrent component. This provides approximately 25\% fewer recurrent parameters while maintaining comparable performance.
+
+\subsection{BiLSTM with Attention}
+
+This architecture augments the BiLSTM with an additive attention mechanism that learns to weight the importance of each time step:
+
+\begin{align}
+    e_t &= \mathbf{v}^T \tanh(\mathbf{W}_a \mathbf{h}_t^{\text{bi}} + \mathbf{b}_a) \\
+    \alpha_t &= \frac{\exp(e_t)}{\sum_{j=1}^{T} \exp(e_j)} \\
+    \mathbf{c} &= \sum_{t=1}^{T} \alpha_t \mathbf{h}_t^{\text{bi}}
+\end{align}
+
+where $\mathbf{v}$, $\mathbf{W}_a$, and $\mathbf{b}_a$ are learnable attention parameters, $\alpha_t$ are the attention weights, and $\mathbf{c}$ is the context vector fed to the output layer. The attention mechanism enables the model to focus on the most informative time steps for prediction.
+
+\subsection{Transformer}
+
+The Transformer architecture replaces recurrence with multi-head self-attention:
+
+\begin{equation}
+    \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V
+\end{equation}
+
+\begin{equation}
+    \text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h) W^O
+\end{equation}
+
+Our Transformer implementation uses 4 encoder layers with 4 attention heads, a model dimension ($d_{\text{model}}$) of 128, feed-forward dimension of 512, and dropout of 0.1. Positional encoding is added to the input embeddings to provide temporal ordering information, as the self-attention mechanism is inherently permutation-invariant.
+
+\subsection{Informer}
+
+The Informer architecture introduces three key innovations for efficient long-sequence forecasting:
+
+\begin{enumerate}
+    \item \textbf{ProbSparse Self-Attention}: Instead of computing attention for all query-key pairs, ProbSparse attention selects only the top-$u$ most influential queries based on a sparsity measurement:
+    \begin{equation}
+        M(q_i, K) = \max_j \left\{\frac{q_i k_j^T}{\sqrt{d}}\right\} - \frac{1}{L_K} \sum_{j=1}^{L_K} \frac{q_i k_j^T}{\sqrt{d}}
+    \end{equation}
+    
+    \item \textbf{Self-Attention Distilling}: Between encoder layers, a distilling operation with 1D max-pooling progressively reduces the sequence length, prioritizing dominant attention features.
+    
+    \item \textbf{Generative Decoder}: The decoder produces the entire forecast sequence in a single forward pass, rather than auto-regressively.
+\end{enumerate}
+
+Our Informer uses 3 encoder layers, 2 decoder layers, $d_{\text{model}} = 128$, and 4 attention heads.
+
+\subsection{Autoformer}
+
+Autoformer introduces an Auto-Correlation mechanism as a drop-in replacement for self-attention:
+
+\begin{equation}
+    \mathcal{R}_{XX}(\tau) = \lim_{L \to \infty} \frac{1}{L} \sum_{t=1}^{L} X_t X_{t - \tau}
+\end{equation}
+
+The architecture explicitly decomposes the time series into trend and seasonal components through a series of moving average operations within each Auto-Correlation block:
+
+\begin{align}
+    X_t^{\text{trend}} &= \text{AvgPool}(\text{Padding}(X)) \\
+    X_t^{\text{seasonal}} &= X - X_t^{\text{trend}}
+\end{align}
+
+This progressive decomposition provides a strong inductive bias for seasonal time series, which is especially relevant for air quality data with strong diurnal and weekly cycles. Our Autoformer uses 2 encoder layers, 1 decoder layer, and $d_{\text{model}} = 128$.
+
+\subsection{ST-GCN (Spatio-Temporal Graph Convolutional Network)}
+
+ST-GCN models the multivariate time series as a graph where each pollutant is a node. The adjacency matrix is learned from the data using the spatial attention mechanism:
+
+\begin{equation}
+    \mathbf{A} = \text{softmax}(\text{ReLU}(\mathbf{E}_1 \mathbf{E}_2^T))
+\end{equation}
+
+where $\mathbf{E}_1$ and $\mathbf{E}_2$ are learnable node embeddings. Graph convolutions propagate information along the learned graph edges:
+
+\begin{equation}
+    \mathbf{H}^{(l+1)} = \sigma(\tilde{\mathbf{D}}^{-\frac{1}{2}} \tilde{\mathbf{A}} \tilde{\mathbf{D}}^{-\frac{1}{2}} \mathbf{H}^{(l)} \mathbf{W}^{(l)})
+\end{equation}
+
+Temporal convolutions with gated activation capture sequential patterns. Our ST-GCN uses 2 spatio-temporal blocks with 64 hidden channels and a Chebyshev polynomial order of 3 for graph convolutions.
+
+\section{Hyperparameter Optimization}
+
+\subsection{Optuna Framework}
+
+Hyperparameter optimization is conducted using Optuna, a Bayesian optimization framework that uses the Tree-structured Parzen Estimator (TPE) algorithm. TPE models $p(x|y)$ and $p(y)$ separately, where $x$ represents hyperparameters and $y$ represents the objective value (validation RMSE):
+
+\begin{equation}
+    p(x|y) = \begin{cases}
+        l(x) & \text{if } y < y^* \\
+        g(x) & \text{if } y \geq y^*
+    \end{cases}
+\end{equation}
+
+The algorithm selects hyperparameters that maximize the ratio $l(x)/g(x)$, effectively sampling from regions of the hyperparameter space likely to produce good results.
+
+\subsection{Search Space}
+
+Table~\ref{tab:search_space} presents the hyperparameter search space for each model family.
+
+\begin{table}[H]
+\centering
+\caption{Hyperparameter Search Space by Model Family}
+\label{tab:search_space}
+\begin{tabular}{p{3cm}p{2.8cm}p{6.5cm}}
+\toprule
+\textbf{Family} & \textbf{Parameter} & \textbf{Range} \\
+\midrule
+\multirow{3}{*}{Statistical} & ARIMA $p$ & $\{1, \ldots, 10\}$ \\
+ & ARIMA $q$ & $\{0, \ldots, 5\}$ \\
+ & VAR order & $\{1, \ldots, 5\}$ \\
+\midrule
+\multirow{4}{*}{RNN/LSTM/GRU} & Hidden size & $\{64, 128, 256\}$ \\
+ & Num layers & $\{1, 2, 3\}$ \\
+ & Dropout & $[0.1, 0.5]$ \\
+ & Learning rate & Log-uniform $[10^{-4}, 10^{-2}]$ \\
+\midrule
+\multirow{5}{*}{CNN-RNN Hybrids} & CNN filters & $\{32, 64, 128\}$ \\
+ & Kernel size & $\{3, 5, 7\}$ \\
+ & RNN hidden & $\{64, 128\}$ \\
+ & RNN layers & $\{1, 2\}$ \\
+ & Learning rate & Log-uniform $[10^{-4}, 10^{-2}]$ \\
+\midrule
+\multirow{5}{*}{Transformers} & $d_{\text{model}}$ & $\{64, 128, 256\}$ \\
+ & Num heads & $\{4, 8\}$ \\
+ & Encoder layers & $\{2, 3, 4\}$ \\
+ & FF dimension & $\{256, 512\}$ \\
+ & Learning rate & Log-uniform $[10^{-4}, 10^{-2}]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Optimization Budget}
+
+Each model undergoes 20 Optuna trials. The median wall-clock time for 20 trials ranges from 5 minutes (RNN) to 4.2 hours (BiLSTM with Attention). The objective function minimizes validation set RMSE.
+
+\section{Training Configuration}
+
+All deep learning models share a common training configuration:
+
+\begin{itemize}
+    \item \textbf{Loss Function}: Mean Squared Error (MSE)
+    \item \textbf{Optimizer}: Adam ($\beta_1 = 0.9$, $\beta_2 = 0.999$)
+    \item \textbf{Learning Rate Scheduler}: ReduceLROnPlateau with factor 0.5 and patience of 10 epochs
+    \item \textbf{Early Stopping}: Patience of 20 epochs on validation loss, restoring best weights
+    \item \textbf{Maximum Epochs}: 200
+    \item \textbf{Batch Size}: 64
+    \item \textbf{Random Seed}: 42 (ensures reproducibility)
+\end{itemize}
+
+\section{Deployment Architecture}
+
+The deployment pipeline converts trained PyTorch models to ONNX format for efficient inference on the Raspberry Pi 4:
+
+\begin{enumerate}
+    \item \textbf{Model Export}: Traced PyTorch models are exported using \texttt{torch.onnx.export()} with dynamic axes for batch size.
+    \item \textbf{ONNX Validation}: Exported models are validated using \texttt{onnx.checker.check\_model()}.
+    \item \textbf{Quantization}: Optional INT8 dynamic quantization reduces model size and inference latency.
+    \item \textbf{Inference Session}: ONNX Runtime creates an inference session with CPU execution provider optimized for ARM64.
+\end{enumerate}
+
+The Raspberry Pi 4 deployment setup includes:
+\begin{itemize}
+    \item \textbf{OS}: Raspberry Pi OS (64-bit)
+    \item \textbf{Runtime}: ONNX Runtime 1.16 with ARM64 optimizations
+    \item \textbf{Storage}: All 14 ONNX models stored on microSD
+    \item \textbf{Benchmarking}: Per-model latency measured over 100 inference runs with warmup iterations
+\end{itemize}

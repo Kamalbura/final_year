@@ -1,0 +1,103 @@
+\chapter{Conclusion and Future Work}
+
+\section{Conclusion}
+
+This project presented a comprehensive framework for air quality forecasting and edge AI deployment, systematically evaluating 14 models across six architectural families on the Hyderabad PM$_{2.5}$ dataset. The key findings and contributions are summarized below.
+
+\subsection{Summary of Findings}
+
+\textbf{Deep learning conclusively outperforms statistical methods for PM$_{2.5}$ forecasting.} Traditional approaches (ARIMA, SARIMA, VAR) achieved negative $R^2$ values ranging from -1.70 to -5.97, indicating predictions worse than a simple mean baseline. In contrast, all 11 deep learning models achieved positive $R^2$ values, with the Transformer leading at 0.471. This confirms that the complex, multivariate, nonlinear dynamics of urban air pollution require flexible, data-driven modeling approaches.
+
+\textbf{The Transformer architecture is the most accurate model for air quality forecasting.} With an RMSE of 17.34 and $R^2$ of 0.471, the Transformer's self-attention mechanism proved superior to recurrent alternatives for capturing temporal dependencies in air quality time series. The ability to directly attend to any historical time step, rather than processing information sequentially through a hidden state, provides a fundamental advantage.
+
+\textbf{Efficiency-focused alternatives come very close to Transformer accuracy.} The CNN-LSTM (RMSE 17.50) and GRU (RMSE 17.62) achieve near-identical accuracy to the Transformer while requiring only 25\% of the training time and delivering 6--7$\times$ faster inference on edge hardware. This makes them the practical choices for production deployment where computational resources are constrained.
+
+\textbf{Specialized transformer variants (Informer, Autoformer) do not improve over the standard Transformer for this task.} Despite architectural innovations designed for long-sequence forecasting, both Informer (RMSE 18.58) and Autoformer (RMSE 20.64) underperformed the standard Transformer. The 168-step lookback window may be too short for their specialized mechanisms to provide benefits.
+
+\textbf{Edge deployment on Raspberry Pi 4 is practically feasible.} All 14 models achieved sub-second inference latency on the Pi 4, with the fastest models (RNN: 11.5 ms, GRU: 28.8 ms) capable of real-time operation. The annual operating cost of approximately Rs.~250 makes widespread deployment economically viable.
+
+\subsection{Contributions}
+
+The primary contributions of this work are:
+
+\begin{enumerate}
+    \item \textbf{Comprehensive Benchmark}: A systematic, head-to-head comparison of 14 forecasting models on identical data, preprocessing, and evaluation protocols, providing reproducible and directly comparable results.
+
+    \item \textbf{Architecture Insights}: Empirical evidence that the Transformer architecture excels at PM$_{2.5}$ forecasting, while simpler models (CNN-LSTM, GRU) offer better accuracy-to-efficiency trade-offs for practical deployment.
+
+    \item \textbf{Statistical Baseline Failure}: Documentation of the complete failure of ARIMA, SARIMA, and VAR on multivariate PM$_{2.5}$ data, establishing a clear case against traditional statistical approaches for this problem domain.
+
+    \item \textbf{Edge Deployment Framework}: A complete, replicable pipeline from PyTorch training to ONNX Runtime inference on ARM64 edge hardware, with detailed latency and resource benchmarks.
+
+    \item \textbf{Reproducible Methodology}: All experiments conducted with fixed random seeds, standardized splits, and documented hyperparameter configurations, enabling verification and extension by other researchers.
+\end{enumerate}
+
+\section{Limitations}
+
+This study has several limitations that should be acknowledged:
+
+\begin{enumerate}
+    \item \textbf{Single-City Focus}: The study evaluates models exclusively on Hyderabad data. While this enables deep analysis of a single pollution profile, the generalizability of findings to other cities with different pollution characteristics (e.g., Delhi's extreme seasonal pollution or coastal cities' maritime influence) remains unverified.
+
+    \item \textbf{Limited Training Data}: One year of hourly data (8,784 samples) provides reasonable coverage of seasonal patterns but may miss multi-year trends, extreme events, and climate-driven variations. Deep learning models typically benefit from larger datasets.
+
+    \item \textbf{API-Sourced Data}: The Open-Meteo API provides modeled/reanalysis data rather than direct sensor measurements. While generally reliable, it may not capture hyperlocal pollution variations observable with ground sensors.
+
+    \item \textbf{No External Features}: The models use only pollutant concentrations as input features. Incorporating meteorological variables (temperature, humidity, wind speed, wind direction, precipitation) --- which strongly influence pollution dispersion --- could significantly improve forecast accuracy.
+
+    \item \textbf{Fixed Forecast Horizon}: The study uses a single 24-hour forecast horizon. Different applications may require shorter horizons (e.g., 6-hour for emergency response) or longer horizons (e.g., 72-hour for policy planning).
+
+    \item \textbf{Offline Training}: Models are trained once and deployed statically. They do not adapt to changing pollution patterns over time, which could degrade performance as emission sources and atmospheric conditions evolve.
+
+    \item \textbf{PM$_{2.5}$-Only Target}: The study focuses exclusively on PM$_{2.5}$ forecasting. Multi-pollutant forecasting (simultaneously predicting PM$_{2.5}$, PM$_{10}$, O$_3$, NO$_2$) would provide a more complete picture and enable multi-objective optimization.
+\end{enumerate}
+
+\section{Future Work}
+
+Based on the findings and limitations of this study, we identify the following directions for future research:
+
+\subsection{Multi-City Generalization and Transfer Learning}
+
+Extend the study to additional Indian cities (Delhi, Mumbai, Bengaluru, Chennai) to evaluate model generalizability across diverse pollution profiles. Investigate transfer learning approaches where a model pre-trained on data-rich cities (e.g., Delhi) is fine-tuned for data-scarce cities, reducing the data requirements for new deployment locations.
+
+\subsection{Meteorological Feature Integration}
+
+Incorporate meteorological variables (temperature, humidity, wind speed, wind direction, atmospheric pressure, precipitation) as additional input features. Wind patterns, in particular, strongly influence pollutant transport and dispersion. A model combining pollutant and meteorological inputs could capture both local emission dynamics and atmospheric transport effects.
+
+\subsection{Multi-Horizon and Probabilistic Forecasting}
+
+Extend the framework to support multiple forecast horizons (6-hour, 12-hour, 24-hour, 48-hour, 72-hour) simultaneously. Implement probabilistic forecasting using quantile regression or Bayesian neural networks to provide prediction intervals alongside point estimates, enabling risk-aware decision-making.
+
+\subsection{Online and Continual Learning}
+
+Develop online learning capabilities that allow models to adapt to evolving pollution patterns without full retraining. Incremental learning techniques and concept drift detection could enable models to maintain accuracy as emission sources, traffic patterns, and seasonal conditions change over months and years.
+
+\subsection{Multi-Pollutant Joint Forecasting}
+
+Extend the output space to simultaneously predict multiple pollutants (PM$_{2.5}$, PM$_{10}$, O$_3$, NO$_2$, SO$_2$, CO) using multi-task learning architectures. Shared feature extraction across related pollutants could improve generalization, while task-specific heads would maintain pollutant-specific accuracy.
+
+\subsection{Real-Time Sensor Integration}
+
+Replace API-sourced data with direct sensor readings from low-cost IoT air quality monitors, enabling hyperlocal forecasting at neighborhood resolution. This would require addressing sensor calibration, noise filtering, and data quality challenges inherent to low-cost sensor networks.
+
+\subsection{Explainable AI for Pollution Forecasting}
+
+Implement model interpretability techniques (SHAP, LIME, Integrated Gradients, attention visualization) to provide explanations for individual predictions. Understanding which input features and historical time steps most influence a forecast would build trust with stakeholders and potentially reveal pollution dynamics insights.
+
+\subsection{Ensemble Methods and Model Stacking}
+
+Investigate ensemble approaches combining the complementary strengths of different architectures. For example, a Transformer specialized for long-range seasonal patterns could be combined with a CNN-LSTM specialized for local diurnal dynamics, potentially achieving accuracy beyond any single model.
+
+\subsection{Distributed Edge Network}
+
+Scale the deployment from a single Raspberry Pi to a distributed network of edge devices across a city, enabling spatially resolved forecasting. Each node would perform local inference while sharing model updates and aggregated insights through a central coordinator.
+
+\subsection{Health Impact Integration}
+
+Couple air quality forecasts with health impact models to provide actionable risk assessments. For example, translating PM$_{2.5}$ forecasts into specific health advisories for vulnerable populations (asthmatics, elderly, children) would enhance the practical utility of the forecasting system.
+
+\section{Final Remarks}
+
+This project has demonstrated that accurate, real-time PM$_{2.5}$ forecasting is achievable using open-source tools, freely available data, and commodity edge hardware. The systematic benchmark of 14 models provides a valuable reference for practitioners selecting forecasting architectures, while the edge deployment framework establishes a replicable pathway from research to production.
+
+The Transformer's superiority (RMSE 17.34, $R^2$ 0.471) establishes the state of the art for single-city PM$_{2.5}$ forecasting, while the CNN-LSTM (RMSE 17.50) and GRU (RMSE 17.62) prove that near-state-of-the-art accuracy is achievable with dramatically lower computational requirements. As air quality monitoring networks expand across India and other developing nations, the approaches developed in this project can contribute to building a more resilient, informed, and health-conscious society.

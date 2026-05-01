@@ -1,0 +1,159 @@
+\chapter{Introduction}
+
+\section{Overview}
+
+Air quality has emerged as one of the most pressing environmental and public health concerns of the twenty-first century. According to the World Health Organization, ambient air pollution is responsible for approximately 4.2 million premature deaths worldwide each year, with developing nations bearing a disproportionate burden. In India, rapid urbanization, industrial growth, vehicular emissions, and seasonal crop burning have created a complex pollution landscape that demands intelligent monitoring and forecasting solutions.
+
+Traditional air quality monitoring relies on static measurement stations that report real-time pollutant concentrations but offer no predictive capability. Citizens, healthcare providers, and policy-makers require advance knowledge of pollution trends to take protective actions such as issuing health advisories, restricting industrial activity, or advising vulnerable populations to remain indoors. Bridging this gap between observation and prediction is the central challenge that this project addresses.
+
+This project presents a comprehensive, end-to-end air quality forecasting system that spans the entire machine learning lifecycle: from automated data ingestion and preprocessing, through systematic model training and hyperparameter optimization, to benchmarking and production deployment on resource-constrained edge hardware. By evaluating 14 forecasting models across six architectural families on the Hyderabad air quality dataset and deploying the best models on a Raspberry Pi 4, this work demonstrates that accurate, real-time PM$_{2.5}$ prediction is achievable at minimal cost and without dependence on cloud infrastructure.
+
+The system ingests hourly air quality and meteorological data from the Open-Meteo API, performs systematic feature engineering with 168-hour lookback windows, trains models using GPU-accelerated PyTorch, conducts rigorous hyperparameter optimization using Optuna with 20 trials per model, and benchmarks all models under identical experimental conditions. The best-performing models are converted to optimized ONNX format for efficient inference on a Raspberry Pi 4 edge device.
+
+\section{Motivation}
+
+The motivation for this project arises from the intersection of three critical trends: the alarming deterioration of air quality in Indian cities, the growing accessibility of edge computing hardware, and the maturation of deep learning frameworks for time series forecasting.
+
+\subsection{The Air Quality Crisis in India}
+
+India hosts 14 of the world's 20 most polluted cities. Delhi routinely exceeds WHO safe limits for PM$_{2.5}$ by factors of 10 to 20 during winter months, while cities like Hyderabad and Bengaluru, traditionally considered less polluted, have experienced steadily worsening air quality due to construction activity, traffic congestion, and industrial expansion. The health consequences are severe: respiratory diseases, cardiovascular disorders, and reduced life expectancy are directly linked to prolonged exposure to elevated pollutant levels.
+
+Hyderabad, the focus city of this study, has experienced rapid urbanization over the past two decades, with a population exceeding 10 million and vehicle registrations growing at 10\% annually. While Hyderabad's air quality is generally better than Delhi's, PM$_{2.5}$ levels frequently exceed 60 $\mu$g/m$^3$ (the National Ambient Air Quality Standard) during winter months and the festival season. Understanding and predicting these pollution patterns is critical for public health interventions.
+
+Despite the severity of this crisis, India's air quality monitoring infrastructure remains sparse. The Central Pollution Control Board operates approximately 800 monitoring stations across the country, a density that is wholly inadequate for a nation of 1.4 billion people. This infrastructure gap makes prediction-based monitoring an essential complement to physical sensors.
+
+\subsection{The Promise of Edge AI}
+
+Cloud-based machine learning solutions, while powerful, introduce latency, bandwidth costs, and dependency on internet connectivity --- constraints that are particularly problematic in developing regions with unreliable network infrastructure. Edge AI, which deploys inference directly on local hardware, eliminates these dependencies while ensuring data privacy and operational resilience.
+
+The Raspberry Pi ecosystem has emerged as a compelling platform for edge deployment, offering sufficient computational power for real-time inference at a fraction of the cost of traditional servers. A Raspberry Pi 4, priced at approximately Rs.~5,000 and consuming only 3 to 5 watts of power, can host multiple ONNX-optimized machine learning models simultaneously, making it an ideal foundation for distributed monitoring networks.
+
+\subsection{Research Gap}
+
+While numerous studies have evaluated individual forecasting models for air quality prediction, few provide a comprehensive, head-to-head comparison across multiple model families --- from classical statistics to cutting-edge transformers --- on the same dataset and under identical experimental conditions. Furthermore, the literature on deploying these models to edge hardware remains limited, with most studies focusing on server-grade deployments.
+
+This project addresses both gaps by providing: (1) a systematic benchmarking of 14 models across six architectural categories on a single, well-prepared Hyderabad dataset, and (2) a complete edge deployment framework with detailed performance characterization on Raspberry Pi 4 hardware.
+
+\section{Problem Definition}
+
+The problem addressed in this project can be formally stated as follows:
+
+\textbf{Given} a multivariate time series of hourly air quality observations comprising pollutant concentrations (PM$_{2.5}$, PM$_{10}$, carbon monoxide, nitrogen dioxide, sulphur dioxide, ozone) and a composite air quality index (European AQI) for Hyderabad, India,
+
+\textbf{Design and implement} an end-to-end forecasting system that:
+
+\begin{enumerate}[label=(\alph*)]
+    \item Accurately predicts future PM$_{2.5}$ values over a 24-hour forecast horizon using a 168-hour (7-day) lookback window.
+    \item Identifies the optimal model architecture from a diverse set of 14 candidates spanning six architectural families, balancing prediction accuracy against computational efficiency.
+    \item Deploys the selected models on resource-constrained edge hardware (Raspberry Pi 4) for real-time, autonomous operation.
+    \item Provides a comprehensive benchmark analysis to guide future model selection decisions.
+\end{enumerate}
+
+\textbf{Subject to} the constraints of limited GPU memory (4 GB VRAM for training), limited edge device resources (8 GB RAM, ARM CPU), and the requirement for sub-second inference latency.
+
+\section{Objectives}
+
+The specific objectives of this project are:
+
+\begin{enumerate}
+    \item \textbf{Data Pipeline Development}: Design and implement an automated data ingestion pipeline that fetches hourly air quality observations from the Open-Meteo API for Hyderabad and prepares them through systematic preprocessing including missing value imputation, outlier handling, and feature engineering.
+
+    \item \textbf{Comprehensive Model Benchmarking}: Train and evaluate 14 forecasting models across six architectural categories:
+    \begin{itemize}
+        \item \textit{Statistical Baselines}: ARIMA, SARIMA, VAR
+        \item \textit{Standard Deep Learning}: RNN, LSTM, GRU, BiLSTM
+        \item \textit{Hybrid Architectures}: CNN-LSTM, CNN-GRU, BiLSTM with Attention
+        \item \textit{Transformer-Based}: Transformer, Informer, Autoformer
+        \item \textit{Spatio-Temporal}: ST-GCN
+    \end{itemize}
+
+    \item \textbf{Hyperparameter Optimization}: Apply Optuna-based Bayesian optimization with 20 trials per model to identify optimal hyperparameters for each architecture.
+
+    \item \textbf{Edge Deployment}: Convert trained models to ONNX format and deploy them on a Raspberry Pi 4 for real-time inference with comprehensive latency and resource usage benchmarking.
+
+    \item \textbf{Comparative Analysis}: Produce detailed metric comparisons (RMSE, MAE, $R^2$) across all models, identifying trade-offs between accuracy and computational cost.
+
+    \item \textbf{Reproducibility}: Establish a fully reproducible pipeline with fixed random seeds, standardized train/val/test splits, and documented hyperparameter configurations.
+\end{enumerate}
+
+\section{Scope}
+
+\subsection{In Scope}
+
+The following aspects are within the scope of this project:
+
+\begin{itemize}
+    \item \textbf{Geographic Coverage}: Hyderabad, India as the primary study city, with data spanning one full year (8,784 hourly observations).
+    \item \textbf{Temporal Resolution}: Hourly observations and predictions, with a 168-hour lookback window and 24-hour forecast horizon.
+    \item \textbf{Pollutant Coverage}: PM$_{2.5}$ as the primary target variable, with PM$_{10}$, carbon monoxide (CO), nitrogen dioxide (NO$_2$), sulphur dioxide (SO$_2$), ozone (O$_3$), and the European AQI as supporting features.
+    \item \textbf{Model Families}: Statistical (ARIMA, SARIMA, VAR), recurrent neural networks (RNN, LSTM, GRU, BiLSTM), convolutional-recurrent hybrids (CNN-LSTM, CNN-GRU), attention-based (BiLSTM with Attention), transformers (Transformer, Informer, Autoformer), and spatio-temporal networks (ST-GCN).
+    \item \textbf{Deployment Target}: Raspberry Pi 4 Model B (8 GB RAM, ARM Cortex-A72) with ONNX Runtime.
+    \item \textbf{Data Source}: Open-Meteo Air Quality API providing free, high-resolution air quality data with global coverage.
+    \item \textbf{Evaluation Metrics}: RMSE, MAE, $R^2$ for predictive accuracy; training time, inference latency for computational efficiency.
+\end{itemize}
+
+\subsection{Out of Scope}
+
+The following aspects are explicitly excluded:
+
+\begin{itemize}
+    \item \textbf{Sensor Hardware Design}: This project uses API-sourced data rather than custom sensor networks.
+    \item \textbf{Online Learning}: Models are trained offline; real-time model updating is identified as future work.
+    \item \textbf{Multi-City Generalization}: The study focuses on Hyderabad; generalization to other cities is future work.
+    \item \textbf{Source Attribution}: The project predicts aggregate pollution levels but does not attribute pollution to specific sources.
+    \item \textbf{Health Impact Modeling}: Direct health outcome prediction is not addressed.
+\end{itemize}
+
+\section{Technologies Used}
+
+Table~\ref{tab:technologies} summarizes the complete technology stack employed in this project.
+
+\begin{table}[H]
+\centering
+\caption{Technologies and Tools Used}
+\label{tab:technologies}
+\begin{tabular}{p{3.2cm}p{2.5cm}p{7cm}}
+\toprule
+\textbf{Category} & \textbf{Technology} & \textbf{Purpose} \\
+\midrule
+\multirow{2}{*}{Programming} & Python 3.9+ & Primary development language \\
+ & Shell Script & Automation and orchestration \\
+\midrule
+\multirow{5}{*}{ML/DL Frameworks} & PyTorch 2.2.2 & Deep learning model training (GPU-accelerated) \\
+ & scikit-learn 1.3+ & Data preprocessing and metrics \\
+ & Optuna 3.6 & Bayesian hyperparameter optimization \\
+ & statsmodels 0.14 & Statistical models (ARIMA, SARIMA, VAR) \\
+ & ONNX Runtime & Optimized model inference on edge \\
+\midrule
+\multirow{2}{*}{Data} & Open-Meteo API & Hourly air quality and meteorological data \\
+ & pandas 2.0+ / NumPy & Data manipulation and array computation \\
+\midrule
+Hardware & NVIDIA RTX 2050 & GPU-accelerated model training (4GB VRAM) \\
+ & Raspberry Pi 4 (8GB) & Edge deployment target \\
+\midrule
+Version Control & Git / GitHub & Source code management \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Technology Justification}
+
+\textbf{PyTorch} was selected over TensorFlow for its imperative programming model, which simplifies debugging and experimentation during model development. The dynamic computation graph enables flexible architecture exploration, which is essential when comparing 14 diverse model architectures.
+
+\textbf{Optuna} was chosen for hyperparameter optimization due to its efficient tree-structured Parzen Estimator (TPE) sampling algorithm, which outperforms traditional grid and random search by adaptively exploring promising regions of the hyperparameter space. The pruning feature allows early termination of unpromising trials, significantly reducing overall optimization time.
+
+\textbf{ONNX Runtime} was selected for edge deployment due to its cross-platform compatibility, support for INT8 dynamic quantization, and significant inference speedups over native PyTorch CPU execution, achieving 2 to 3 times faster inference with zero precision loss at FP32.
+
+\textbf{statsmodels} provides the mature implementations of ARIMA, SARIMA, and VAR models required for establishing statistical baselines against which to compare the deep learning approaches.
+
+\section{Thesis Organization}
+
+The remainder of this report is organized as follows:
+
+\begin{itemize}
+    \item \textbf{Chapter 2 --- System Analysis}: Presents a review of related work, a detailed feasibility study, and the functional and non-functional requirements of the forecasting system.
+    \item \textbf{Chapter 3 --- System Design}: Describes the system architecture, data pipeline design, database schema, and the theoretical foundations and architectural details of all 14 models.
+    \item \textbf{Chapter 4 --- Implementation}: Documents the implementation details including code organization, training pipeline configuration, hyperparameter optimization framework, and ONNX conversion.
+    \item \textbf{Chapter 5 --- Results}: Presents comprehensive experimental results, comparative analysis of all 14 models, convergence analysis, prediction visualizations, and edge deployment benchmarks.
+    \item \textbf{Chapter 6 --- Conclusion and Future Work}: Summarizes key findings, discusses limitations, and outlines directions for future research.
+\end{itemize}

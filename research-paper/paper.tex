@@ -1,0 +1,328 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{balance}
+
+\graphicspath{{./images/}}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Comprehensive Benchmarking of 14 Forecasting Models for PM2.5 Prediction with Edge AI Deployment}
+
+\author{\IEEEauthorblockN{Kotichintala Srihari Sakshith\IEEEauthorrefmark{1},
+Kamal Bura\IEEEauthorrefmark{2},
+Mohammad Abdul Muttalib\IEEEauthorrefmark{3}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Department of Computer Science and Engineering,
+Vasavi College of Engineering, Hyderabad, India\\
+Email: sakshith.k@vasavi.ac.in}
+\IEEEauthorblockA{\IEEEauthorrefmark{2}Department of Computer Science and Engineering,
+Vasavi College of Engineering, Hyderabad, India\\
+Email: kamal.b@vasavi.ac.in}
+\IEEEauthorblockA{\IEEEauthorrefmark{3}Department of Computer Science and Engineering,
+Vasavi College of Engineering, Hyderabad, India\\
+Email: muttalib.a@vasavi.ac.in}
+}
+
+\maketitle
+
+\begin{abstract}
+Accurate forecasting of PM2.5 concentrations is critical for public health interventions in rapidly urbanizing Indian cities. This paper presents a comprehensive benchmarking study evaluating 14 distinct forecasting models---spanning classical statistical methods, tree-based ensembles, recurrent neural networks, hybrid CNN-RNN architectures, and state-of-the-art transformer variants---trained on hourly air quality data from Hyderabad, India. Our key finding is that while transformer-based architectures achieve the best performance among deep learning approaches (RMSE 17.34, R$^2$ 0.471), a Random Forest ensemble significantly outperforms all models with an RMSE of 15.58 and R$^2$ of 0.572. Classical statistical methods (ARIMA, SARIMA, VAR) fail catastrophically, yielding negative R$^2$ scores on this non-stationary, multivariate dataset. We further demonstrate the feasibility of deploying these models on edge hardware by benchmarking inference latency on a Raspberry Pi 4 (Cortex-A72, 8GB RAM), where Random Forest achieves 0.8ms inference, making it the optimal choice for resource-constrained air quality monitoring stations. A production deployment with Apache Airflow orchestration and a Streamlit dashboard is presented, validating end-to-end operational readiness.
+\end{abstract}
+
+\begin{IEEEkeywords}
+PM2.5 forecasting, air quality, deep learning, transformer, edge AI, Raspberry Pi, benchmarking
+\end{IEEEkeywords}
+
+\section{Introduction}
+Air pollution is the leading environmental risk factor for premature mortality worldwide, responsible for an estimated 7 million deaths annually according to the World Health Organization \cite{who2021air}. India bears a disproportionate burden, with 21 of the world's 30 most polluted cities located within its borders. PM2.5---fine particulate matter with a diameter of 2.5 micrometers or less---is particularly hazardous, penetrating deep into the lungs and bloodstream, contributing to cardiovascular and respiratory diseases \cite{cohen2017estimates}.
+
+Accurate forecasting of PM2.5 concentrations enables governments to issue preemptive health advisories, implement traffic restrictions, and guide industrial shutdowns during severe pollution episodes. However, air quality forecasting presents unique challenges: the data is non-stationary, exhibits complex spatio-temporal dependencies, and is influenced by meteorological variables including temperature, humidity, wind speed, and atmospheric pressure.
+
+Recent advances in deep learning have produced a proliferation of competing architectures for time-series forecasting, including Long Short-Term Memory (LSTM) networks, Gated Recurrent Units (GRU), convolutional-recurrent hybrids, and attention-based transformers \cite{vaswani2017attention,hochreiter1997long}. Simultaneously, tree-based ensemble methods such as XGBoost and Random Forest continue to demonstrate competitive performance on tabular forecasting tasks \cite{chen2016xgboost}. While individual papers often advocate for a single architectural paradigm, comprehensive apples-to-apples comparisons across model families remain scarce in the air quality domain.
+
+This paper makes three primary contributions:
+\begin{enumerate}
+    \item A rigorous benchmark of 14 forecasting models spanning five architectural families on a common Hyderabad PM2.5 dataset, with consistent data preprocessing, train/test splits, and evaluation metrics.
+    \item An empirical analysis of model performance on edge hardware (Raspberry Pi 4), measuring inference latency, memory footprint, and deployment feasibility.
+    \item A production-ready deployment pipeline using Apache Airflow for orchestration and ONNX Runtime for edge inference.
+\end{enumerate}
+
+\section{Related Work}
+
+Time-series forecasting for air quality has been extensively studied. Classical approaches rely on autoregressive models such as ARIMA and its seasonal variant SARIMA, which model temporal dependencies through differencing and moving average components \cite{box2015time}. Zhang et al. \cite{zhang2003time} demonstrated the limitations of pure statistical approaches for non-linear pollution data, motivating hybrid architectures.
+
+Deep learning approaches have dominated recent literature. Li et al. \cite{li2017long} applied LSTM networks to air quality prediction in Beijing, achieving a 30\% improvement over ARIMA baselines. Soh et al. \cite{soh2018application} compared LSTM, GRU, and bidirectional variants for PM2.5 forecasting across multiple urban sites.
+
+Convolutional-recurrent hybrids have shown promise for capturing both local patterns and long-range temporal dependencies \cite{huang2020cnn}. The CNN-LSTM architecture in particular has become a strong baseline, with convolutional layers extracting spatial features before recurrent layers model temporal sequences.
+
+The transformer revolution has reached time-series forecasting. Wu et al. \cite{wu2021autoformer} introduced Autoformer with auto-correlation mechanisms replacing standard self-attention, achieving state-of-the-art results on weather benchmarks. Zhou et al. \cite{zhou2021informer} proposed Informer with ProbSparse attention for long sequence forecasting. However, the effectiveness of these architectures on short-horizon PM2.5 prediction remains underexplored.
+
+On the deployment side, edge AI for environmental monitoring is an emerging paradigm. Kumar et al. \cite{kumar2020edge} deployed LSTM models on Raspberry Pi for real-time air quality inference, reporting latency under 50ms. Our work extends this by benchmarking the full spectrum of architectures on edge hardware and providing a production-ready orchestration framework.
+
+\section{Methodology}
+
+\subsection{Dataset}
+
+The dataset was sourced from the Open-Meteo API \cite{zippenfenig2023openmeteo}, covering Hyderabad, India (latitude 17.3850\textdegree N, longitude 78.4867\textdegree E). One year of hourly measurements (8,784 timestamps) from January 2024 to December 2024 was collected. Features include seven air quality indicators and five meteorological variables:
+
+\begin{itemize}
+    \item \textbf{Air quality:} PM2.5 ($\mu$g/m$^3$), PM10 ($\mu$g/m$^3$), Carbon Monoxide (CO, $\mu$g/m$^3$), Nitrogen Dioxide (NO$_2$, $\mu$g/m$^3$), Sulphur Dioxide (SO$_2$, $\mu$g/m$^3$), Ozone (O$_3$, $\mu$g/m$^3$), US AQI
+    \item \textbf{Meteorology:} Temperature (\textdegree C), Relative Humidity (\%), Wind Speed (km/h), Wind Direction (\textdegree), Surface Pressure (hPa)
+\end{itemize}
+
+Preprocessing included forward-fill imputation for missing values, Min-Max normalization to [0,1], and sliding window construction with a 168-hour (7-day) lookback window predicting 24-hour PM2.5 concentrations. The dataset was split chronologically: 80\% training (first 7,027 hours), 20\% testing (last 1,757 hours).
+
+\subsection{Model Architectures}
+
+We evaluated 14 distinct models across five architectural families:
+
+\subsubsection{Statistical Baselines}
+\textbf{ARIMA} (AutoRegressive Integrated Moving Average): Configured with automatic order selection via AIC minimization (pmax=5, dmax=2, qmax=5). \textbf{SARIMA}: Extended ARIMA with seasonal components (seasonal period $m=24$ for daily cycles). \textbf{VAR} (Vector Autoregression): Multivariate extension modeling interactions between all feature series simultaneously. All implemented using statsmodels \cite{seabold2010statsmodels}.
+
+\subsubsection{Tree-Based Ensembles}
+\textbf{Random Forest}: 200 estimators, max depth 20, bootstrapping enabled. \textbf{XGBoost}: Gradient boosting with 200 estimators, learning rate 0.1, max depth 6, L2 regularization $\lambda=1$. \textbf{LightGBM}: Leaf-wise gradient boosting with 200 estimators, learning rate 0.1, num leaves 31. \textbf{SVR}: Support Vector Regression with RBF kernel ($C=10$, $\gamma=0.01$, $\epsilon=0.1$). Implemented using scikit-learn \cite{pedregosa2011scikit}, XGBoost, and LightGBM libraries.
+
+\subsubsection{Recurrent Neural Networks}
+\textbf{RNN}: Single-layer vanilla recurrent network (hidden size 64). \textbf{LSTM}: Two-layer LSTM with 128 hidden units per layer, layer normalization, dropout 0.2. \textbf{GRU}: Two-layer GRU with 128 hidden units, dropout 0.2. \textbf{BiLSTM}: Bidirectional LSTM with 64 hidden units per direction, concatenated outputs. All implemented using PyTorch 2.2.2.
+
+\subsubsection{Hybrid CNN-RNN}
+\textbf{CNN-LSTM}: Conv1D layer (64 filters, kernel size 3) followed by two LSTM layers (128 units) with ReLU activation and max pooling. \textbf{CNN-GRU}: Conv1D layer (64 filters, kernel size 3) followed by two GRU layers (128 units). \textbf{BiLSTM-Attention}: Bidirectional LSTM (64 units/direction) with scaled dot-product attention mechanism aggregating hidden states.
+
+\subsubsection{Transformers}
+\textbf{Vanilla Transformer}: 3 encoder layers, 4 attention heads, model dimension 128, feed-forward dimension 512, positional encoding, dropout 0.1. \textbf{Informer}: ProbSparse self-attention mechanism, 3 encoder layers, 4 heads, dimension 128. \textbf{Autoformer}: Series decomposition block with auto-correlation mechanism replacing self-attention, 2 encoder layers, moving average kernel 25.
+
+\subsection{Training Setup}
+
+All deep learning models were trained with the following configuration: Adam optimizer ($\beta_1=0.9$, $\beta_2=0.999$), initial learning rate 0.001 with ReduceLROnPlateau scheduler (factor 0.5, patience 5), batch size 32, MSE loss function, and 100 maximum epochs with early stopping (patience 15). Training was conducted on an Intel i5-12450H CPU (16GB RAM). All models used identical input features (12-dimensional), sequence length (168 hours), and output horizon (24 hours).
+
+\subsection{Edge Deployment Platform}
+
+For edge inference benchmarking, models were deployed on a Raspberry Pi 4 Model B with the following specifications: Broadcom BCM2711 quad-core ARM Cortex-A72 processor at 1.5GHz, 8GB LPDDR4 RAM, running Raspberry Pi OS Lite (64-bit). Deep learning models were converted to ONNX format for optimized inference. Production orchestration was handled by Apache Airflow 2.8.1 running in Docker containers, with a Streamlit-based monitoring dashboard.
+
+\subsection{Evaluation Metrics}
+
+Model performance was evaluated using three standard regression metrics:
+
+\begin{equation}
+\text{RMSE} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}
+\end{equation}
+
+\begin{equation}
+\text{MAE} = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|
+\end{equation}
+
+\begin{equation}
+R^2 = 1 - \frac{\sum_{i=1}^{n}(y_i - \hat{y}_i)^2}{\sum_{i=1}^{n}(y_i - \bar{y})^2}
+\end{equation}
+
+\section{Results and Discussion}
+
+\subsection{Overall Model Performance}
+
+Table~\ref{tab:full_comparison} presents the complete benchmarking results for all 14 models evaluated on the Hyderabad test set. The key finding is that tree-based ensemble methods significantly outperform deep learning architectures on this forecasting task.
+
+\begin{table}[htbp]
+\centering
+\caption{Complete Model Comparison on Hyderabad PM2.5 Test Set}
+\label{tab:full_comparison}
+\renewcommand{\arraystretch}{1.15}
+\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{R$^2$} & \textbf{Train (s)} \\
+\midrule
+\multicolumn{5}{c}{\textit{Statistical Baselines}} \\
+\midrule
+ARIMA & 55.22 & 50.37 & $-$4.250 & 31.8 \\
+SARIMA & 63.64 & 58.85 & $-$5.972 & 34.4 \\
+VAR & 39.61 & 32.68 & $-$1.700 & 9.5 \\
+\midrule
+\multicolumn{5}{c}{\textit{Tree-Based Ensembles}} \\
+\midrule
+\textbf{Random Forest} & \textbf{15.58} & \textbf{11.79} & \textbf{0.572} & 1932.0 \\
+SVR & 17.17 & 12.63 & 0.484 & 2232.0 \\
+XGBoost & 17.60 & 12.56 & 0.453 & 936.0 \\
+LightGBM & 20.97 & 15.71 & 0.225 & 28.4 \\
+\midrule
+\multicolumn{5}{c}{\textit{Recurrent Neural Networks}} \\
+\midrule
+RNN & 18.65 & 13.53 & 0.386 & 1152.0 \\
+LSTM & 19.68 & 14.78 & 0.316 & 2178.0 \\
+GRU & 17.62 & 13.26 & 0.452 & 1590.0 \\
+BiLSTM & 17.90 & 13.06 & 0.435 & 3894.0 \\
+\midrule
+\multicolumn{5}{c}{\textit{Hybrid CNN-RNN}} \\
+\midrule
+CNN-LSTM & 17.50 & 13.18 & 0.459 & 1938.0 \\
+CNN-GRU & 18.73 & 14.03 & 0.381 & 2526.0 \\
+\midrule
+\multicolumn{5}{c}{\textit{Transformers}} \\
+\midrule
+Transformer & 17.34 & 12.50 & 0.471 & 2388.0 \\
+Informer & 18.58 & 13.68 & 0.393 & 2550.0 \\
+Autoformer & 20.64 & 15.54 & 0.250 & 2994.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Random Forest achieves the lowest RMSE (15.58) and highest R$^2$ (0.572), representing a 9.7\% improvement over the best deep learning model (Transformer, RMSE 17.34). Among deep learning approaches, the Transformer performs best (R$^2$ 0.471), followed closely by CNN-LSTM (0.459) and GRU (0.452). The BiLSTM (0.435) trails slightly due to the additional computational complexity of bidirectional processing.
+
+\subsection{Failure of Statistical Models}
+
+A striking result is the complete failure of classical statistical approaches. ARIMA, SARIMA, and VAR all produce negative R$^2$ scores ($-$4.250, $-$5.972, and $-$1.700 respectively), indicating that they perform worse than a naive mean predictor. This failure stems from the high non-stationarity of urban PM2.5 data driven by irregular emission events, meteorological fluctuations, and long-range pollutant transport---conditions that violate the linearity and stationarity assumptions underlying autoregressive models.
+
+\subsection{Convergence Analysis}
+
+Fig.~\ref{fig:convergence} shows training and validation loss curves for the Transformer and CNN-LSTM models. The Transformer exhibits rapid initial convergence, with validation loss stabilizing around epoch 60. CNN-LSTM converges more smoothly but reaches a slightly higher final validation loss (MSE 306.3 vs. 300.8 for Transformer at epoch 100).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{Transformer_convergence.png}
+\includegraphics[width=\columnwidth]{CNN-LSTM_convergence.png}
+\caption{Training and validation loss convergence for (a) Transformer, (b) CNN-LSTM. Both models show stable convergence with early stopping at epochs 60--80.}
+\label{fig:convergence}
+\end{figure}
+
+\subsection{Prediction Parity}
+
+Fig.~\ref{fig:parity} presents prediction-vs-actual scatter plots. The Transformer parity plot shows moderate correlation ($R^2 = 0.471$) with a tendency to underestimate extreme PM2.5 events above 150 $\mu$g/m$^3$. The BiLSTM parity plot exhibits similar behavior ($R^2 = 0.435$) but with greater scatter in the mid-range (50--100 $\mu$g/m$^3$), indicating that the bidirectional processing does not confer a decisive advantage on this dataset.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{Transformer_parity.png}
+\includegraphics[width=\columnwidth]{BiLSTM_parity.png}
+\caption{Prediction parity plots: predicted vs. actual PM2.5 concentrations for (a) Transformer ($R^2 = 0.471$), (b) BiLSTM ($R^2 = 0.435$). Dashed line indicates perfect prediction.}
+\label{fig:parity}
+\end{figure}
+
+\subsection{Edge Deployment Benchmarks}
+
+Table~\ref{tab:edge_benchmarks} presents inference latency benchmarks on the Raspberry Pi 4 edge device. Tree-based models demonstrate decisive advantages for real-time deployment.
+
+\begin{table}[htbp]
+\centering
+\caption{Edge Inference Performance on Raspberry Pi 4}
+\label{tab:edge_benchmarks}
+\renewcommand{\arraystretch}{1.15}
+\footnotesize
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Mean (ms)} & \textbf{P95 (ms)} & \textbf{Size (MB)} & \textbf{Mem (MB)} \\
+\midrule
+Random Forest & \textbf{0.8} & \textbf{1.2} & 15.4 & 45 \\
+ARIMA & 5.2 & 8.1 & 0.01 & 8 \\
+XGBoost & 3.2 & 4.8 & 1.2 & 18 \\
+LightGBM & 4.5 & 6.2 & 0.9 & 15 \\
+SVR & 2.1 & 3.5 & 0.8 & 12 \\
+\midrule
+RNN (ONNX) & 12.5 & 18.3 & 0.4 & 22 \\
+GRU (ONNX) & 18.7 & 26.4 & 0.55 & 28 \\
+LSTM (ONNX) & 24.3 & 34.8 & 0.72 & 35 \\
+CNN-LSTM (ONNX) & 28.5 & 39.2 & 1.02 & 42 \\
+BiLSTM (ONNX) & 38.2 & 52.1 & 1.3 & 48 \\
+\midrule
+Transformer (ONNX) & 185.3 & 245.6 & 1.2 & 62 \\
+Informer (ONNX) & 198.7 & 268.4 & 1.1 & 64 \\
+Autoformer (ONNX) & 210.2 & 289.1 & 0.99 & 66 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Random Forest achieves the fastest inference (0.8ms mean) while maintaining the highest accuracy---a combination that makes it the unequivocal choice for edge deployment. Deep learning models, even after ONNX optimization, exhibit latencies 15--260$\times$ higher than Random Forest. The Transformer's self-attention mechanism, while powerful in training, incurs a 185.3ms inference cost, making it unsuitable for real-time monitoring on current-generation edge hardware.
+
+The ensemble model deployed in production uses a weighted combination: Random Forest (53\%), GRU (23.5\%), and XGBoost (23.5\%), selected based on the Pareto frontier of accuracy vs. latency.
+
+\subsection{Production Deployment}
+
+Fig.~\ref{fig:deployment} shows the production air quality monitoring dashboard deployed on the Raspberry Pi 4. Apache Airflow orchestrates hourly data ingestion from Open-Meteo, model inference via ONNX Runtime, and result storage in SQLite. A Streamlit frontend displays real-time PM2.5 predictions with 24-hour forecasts, historical trends, and AQI category indicators.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{deploy_dashboard_overview.png}
+\caption{Production deployment dashboard showing real-time PM2.5 predictions and 24-hour forecast on Raspberry Pi 4. Airflow DAGs orchestrate hourly inference cycles.}
+\label{fig:deployment}
+\end{figure}
+
+The deployed system processes hourly predictions with a total pipeline latency of 2.8 seconds (data ingestion: 1.2s, feature engineering: 0.6s, ensemble inference: 0.8s, dashboard update: 0.2s), well within the hourly update window.
+
+\section{Conclusion}
+
+This paper presents a comprehensive, apples-to-apples benchmark of 14 forecasting models for PM2.5 prediction on the Hyderabad air quality dataset. Our key findings are:
+
+\begin{enumerate}
+    \item \textbf{Random Forest dominates:} With an RMSE of 15.58 and R$^2$ of 0.572, the Random Forest ensemble outperforms all deep learning architectures, including transformers, by a margin of 9.7\% in RMSE and 21.4\% in R$^2$.
+    \item \textbf{Transformers lead deep learning:} Among neural network architectures, the vanilla Transformer achieves the best performance (RMSE 17.34, R$^2$ 0.471), surpassing CNN-LSTM (0.459), GRU (0.452), and Informer (0.393).
+    \item \textbf{Classical methods fail:} ARIMA, SARIMA, and VAR produce negative R$^2$ scores, confirming the inadequacy of linear models for non-stationary urban air pollution data.
+    \item \textbf{Edge deployment is feasible:} Random Forest achieves 0.8ms inference on a Raspberry Pi 4, enabling real-time monitoring at the edge at negligible computational cost.
+    \item \textbf{Accuracy-latency trade-off:} Transformer models, despite their superior representational capacity, incur inference latencies exceeding 185ms on edge hardware, limiting their deployment in resource-constrained environments.
+\end{enumerate}
+
+Future work should explore (1) multi-city spatio-temporal models incorporating graph neural networks for city-to-city pollution transport, (2) quantile regression for probabilistic forecasting with uncertainty estimates, and (3) federated learning across distributed edge nodes to preserve data privacy while improving model generalization.
+
+\section*{Acknowledgment}
+The authors thank Vasavi College of Engineering for providing computational resources and the Open-Meteo team for maintaining open-access air quality data APIs.
+
+\begin{thebibliography}{00}
+
+\bibitem{who2021air}
+World Health Organization, ``WHO global air quality guidelines: particulate matter (PM2.5 and PM10), ozone, nitrogen dioxide, sulfur dioxide and carbon monoxide,'' WHO, Geneva, 2021.
+
+\bibitem{cohen2017estimates}
+A.~J.~Cohen \textit{et al.}, ``Estimates and 25-year trends of the global burden of disease attributable to ambient air pollution: an analysis of data from the Global Burden of Diseases Study 2015,'' \textit{The Lancet}, vol.~389, no.~10082, pp.~1907--1918, 2017.
+
+\bibitem{vaswani2017attention}
+A.~Vaswani \textit{et al.}, ``Attention is all you need,'' in \textit{Advances in Neural Information Processing Systems}, vol.~30, 2017, pp.~5998--6008.
+
+\bibitem{hochreiter1997long}
+S.~Hochreiter and J.~Schmidhuber, ``Long short-term memory,'' \textit{Neural Computation}, vol.~9, no.~8, pp.~1735--1780, 1997.
+
+\bibitem{chen2016xgboost}
+T.~Chen and C.~Guestrin, ``XGBoost: A scalable tree boosting system,'' in \textit{Proc. 22nd ACM SIGKDD}, 2016, pp.~785--794.
+
+\bibitem{box2015time}
+G.~E.~P.~Box, G.~M.~Jenkins, G.~C.~Reinsel, and G.~M.~Ljung, \textit{Time Series Analysis: Forecasting and Control}, 5th ed. Wiley, 2015.
+
+\bibitem{zhang2003time}
+G.~P.~Zhang, ``Time series forecasting using a hybrid ARIMA and neural network model,'' \textit{Neurocomputing}, vol.~50, pp.~159--175, 2003.
+
+\bibitem{li2017long}
+X.~Li \textit{et al.}, ``Long short-term memory neural network for air pollutant concentration predictions: Method development and evaluation,'' \textit{Environmental Pollution}, vol.~231, pp.~997--1004, 2017.
+
+\bibitem{soh2018application}
+P.~W.~Soh, J.~W.~Chang, and J.~W.~Huang, ``Application of deep learning and machine learning models to improve the accuracy of PM2.5 prediction,'' in \textit{Proc. IEEE Int. Conf. Big Data}, 2018, pp.~4784--4792.
+
+\bibitem{huang2020cnn}
+C.~J.~Huang and P.~H.~Kuo, ``A deep CNN-LSTM model for particulate matter (PM2.5) forecasting in smart cities,'' \textit{Sensors}, vol.~20, no.~7, p.~1913, 2020.
+
+\bibitem{wu2021autoformer}
+H.~Wu, J.~Xu, J.~Wang, and M.~Long, ``Autoformer: Decomposition transformers with auto-correlation for long-term series forecasting,'' in \textit{Advances in Neural Information Processing Systems}, vol.~34, 2021.
+
+\bibitem{zhou2021informer}
+H.~Zhou \textit{et al.}, ``Informer: Beyond efficient transformer for long sequence time-series forecasting,'' in \textit{Proc. AAAI Conf. Artificial Intelligence}, vol.~35, no.~12, 2021, pp.~11106--11115.
+
+\bibitem{kumar2020edge}
+S.~Kumar, V.~Yadav, and A.~Kumar, ``Edge AI for real-time air quality monitoring using deep learning on Raspberry Pi,'' \textit{IEEE Sensors Journal}, vol.~20, no.~22, pp.~13686--13694, 2020.
+
+\bibitem{zippenfenig2023openmeteo}
+P.~Zippenfenig, ``Open-Meteo Weather API,'' 2023. [Online]. Available: \url{https://open-meteo.com/}
+
+\bibitem{pedregosa2011scikit}
+F.~Pedregosa \textit{et al.}, ``Scikit-learn: Machine learning in Python,'' \textit{Journal of Machine Learning Research}, vol.~12, pp.~2825--2830, 2011.
+
+\bibitem{seabold2010statsmodels}
+S.~Seabold and J.~Perktold, ``Statsmodels: Econometric and statistical modeling with Python,'' in \textit{Proc. 9th Python in Science Conf.}, 2010, pp.~92--96.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,12 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces High-Level System Architecture}}{22}{figure.caption.8}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Training convergence curves for the top three performing models}}{41}{figure.caption.16}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Parity plots: Predicted vs. Actual PM$_{2.5}$ values}}{42}{figure.caption.17}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces 24-hour time series predictions versus actual observations}}{42}{figure.caption.18}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Error histogram distributions for key models}}{43}{figure.caption.19}%
+\contentsline {figure}{\numberline {5.5}{\ignorespaces Deployment dashboard and Airflow orchestration on Raspberry Pi 4}}{45}{figure.caption.21}%
+\addvspace {10\p@ }

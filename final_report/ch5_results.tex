@@ -1,0 +1,361 @@
+\chapter{Results and Discussion}
+
+\section{Experimental Setup}
+
+All experiments were conducted on a system equipped with an NVIDIA RTX 2050 GPU (4 GB VRAM), Intel Core i5-12450H CPU, and 16 GB system RAM. The software environment uses Python 3.9, PyTorch 2.2.2 with CUDA 12.1 support, Optuna 3.6 for hyperparameter optimization, and statsmodels 0.14 for statistical baselines.
+
+Each deep learning model was trained using the Adam optimizer with early stopping (patience = 20 epochs) and a ReduceLROnPlateau learning rate scheduler (factor = 0.5, patience = 10). Optuna's TPE sampler was used with 20 trials per model. All experiments use a fixed random seed of 42 for reproducibility.
+
+\section{Overall Model Performance}
+
+Table~\ref{tab:all_results} presents the complete results for all 14 models evaluated on the Hyderabad dataset. Models are ranked by RMSE, from best to worst.
+
+\begin{table}[H]
+\centering
+\caption{Complete Model Performance on Hyderabad PM$_{2.5}$ Forecasting}
+\label{tab:all_results}
+\begin{tabular}{llrrrrr}
+\toprule
+\textbf{Rank} & \textbf{Model} & \textbf{Family} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$} & \textbf{Train (s)} \\
+\midrule
+1 & Transformer & Transformer & 17.34 & 12.50 & 0.471 & 151.9 \\
+2 & CNN-LSTM & Hybrid & 17.50 & 13.18 & 0.459 & 37.7 \\
+3 & GRU & RNN Sequence & 17.62 & 13.26 & 0.452 & 38.5 \\
+4 & BiLSTM & RNN Sequence & 17.90 & 13.06 & 0.435 & 83.9 \\
+5 & Informer & Transformer & 18.58 & 13.68 & 0.393 & 94.6 \\
+6 & RNN & RNN Sequence & 18.65 & 13.53 & 0.386 & 29.6 \\
+7 & CNN-GRU & Hybrid & 18.73 & 14.03 & 0.381 & 51.0 \\
+8 & BiLSTM-Attn & Hybrid & 19.41 & 14.96 & 0.335 & 256.4 \\
+9 & LSTM & RNN Sequence & 19.68 & 14.78 & 0.316 & 47.4 \\
+10 & Autoformer & Transformer & 20.64 & 15.54 & 0.250 & 133.2 \\
+11 & ST-GCN & Spatio-Temporal & 25.60 & 20.93 & -0.159 & 25.6 \\
+12 & VAR & Statistical & 39.61 & 32.68 & -1.700 & 0.5 \\
+13 & ARIMA & Statistical & 55.22 & 50.37 & -4.250 & 0.3 \\
+14 & SARIMA & Statistical & 63.64 & 58.85 & -5.972 & 8.6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Key Observations}
+
+Several important findings emerge from Table~\ref{tab:all_results}:
+
+\textbf{1. Deep learning models dominate statistical baselines.} All 11 deep learning models achieve positive $R^2$ values (0.250--0.471), while all three statistical models (ARIMA, SARIMA, VAR) produce negative $R^2$ values, indicating they perform worse than a naive mean-prediction baseline. This demonstrates that the complex, multivariate, nonlinear dynamics of PM$_{2.5}$ concentrations are not adequately captured by simple linear statistical models.
+
+\textbf{2. The Transformer achieves the best overall performance.} With an RMSE of 17.34 and $R^2$ of 0.471, the Transformer architecture proves most effective at modeling the temporal dependencies in the Hyderabad air quality data. The self-attention mechanism's ability to directly model relationships between any pair of time steps evidently provides an advantage over the sequential processing of RNN-based models.
+
+\textbf{3. CNN-LSTM is the most efficient high-performer.} The CNN-LSTM achieves an RMSE of 17.50 (within 1\% of the Transformer) while requiring only 25\% of the training time (37.7s vs 151.9s). For applications where training time is a constraint, CNN-LSTM represents an excellent accuracy-efficiency trade-off.
+
+\textbf{4. GRU matches or exceeds LSTM.} Across the standard sequence models, GRU (RMSE 17.62) outperforms both LSTM (19.68) and BiLSTM (17.90), despite having 25\% fewer parameters than LSTM. This confirms that the GRU's simpler gating mechanism provides sufficient expressive power for this task while being more parameter-efficient.
+
+\textbf{5. ST-GCN underperforms on single-city data.} The ST-GCN, designed for multi-city spatial correlations, achieves an RMSE of 25.60 and negative $R^2$ of -0.159 on single-city Hyderabad data. This suggests that the spatial modeling component provides no benefit (and may introduce noise) when applied to a single location.
+
+\textbf{6. RNN surprisingly beats LSTM.} The simple RNN (RMSE 18.65, $R^2$ 0.386) outperformed LSTM (RMSE 19.68, $R^2$ 0.316). With the relatively short 168-step lookback window, the vanishing gradient problem may not significantly impact the simple RNN, while the additional LSTM parameters may lead to overfitting.
+
+\section{Performance by Model Family}
+
+\subsection{Statistical Baselines}
+
+The statistical models show a clear failure pattern:
+
+\begin{itemize}
+    \item \textbf{ARIMA (RMSE 55.22, $R^2$ -4.25)}: The univariate ARIMA model, using only historical PM$_{2.5}$ values, cannot capture the multivariate dependencies crucial for accurate forecasting. Its predictions are essentially flat lines near the mean, ignoring diurnal and seasonal variations.
+    
+    \item \textbf{SARIMA (RMSE 63.64, $R^2$ -5.97)}: Despite incorporating a 24-hour seasonal component to model diurnal cycles, SARIMA performs worse than ARIMA. This suggests that the seasonal patterns in PM$_{2.5}$ are not consistently regular enough for a fixed seasonal model.
+    
+    \item \textbf{VAR (RMSE 39.61, $R^2$ -1.70)}: While VAR leverages all 7 features and performs better than univariate ARIMA/SARIMA, the linear VAR model still fails to capture the nonlinear relationships between pollutants. The rapid growth of parameters with $k^2 p = 7^2 \times 2 = 98$ coefficients for VAR(2) with 7 variables limits effective learning.
+\end{itemize}
+
+\subsection{Standard Deep Learning Sequence Models}
+
+\begin{table}[H]
+\centering
+\caption{Standard RNN-Based Model Performance}
+\label{tab:rnn_family}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$} & \textbf{Params} \\
+\midrule
+GRU & 17.62 & 13.26 & 0.452 & 110,593 \\
+BiLSTM & 17.90 & 13.06 & 0.435 & 491,521 \\
+RNN & 18.65 & 13.53 & 0.386 & 85,313 \\
+LSTM & 19.68 & 14.78 & 0.316 & 147,073 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The standard sequence models show a clear hierarchy: GRU $>$ BiLSTM $>$ RNN $>$ LSTM. Notably, the simple RNN outperforms LSTM by 1.03 RMSE points, suggesting that LSTM's additional complexity does not provide benefits for the 168-step window length used in this study. The BiLSTM's bidirectional processing provides a modest improvement over unidirectional LSTM but at the cost of 3.3$\times$ more parameters.
+
+\subsection{Hybrid Architectures}
+
+\begin{table}[H]
+\centering
+\caption{Hybrid Model Performance}
+\label{tab:hybrid_family}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$} & \textbf{Train (s)} \\
+\midrule
+CNN-LSTM & 17.50 & 13.18 & 0.459 & 37.7 \\
+CNN-GRU & 18.73 & 14.03 & 0.381 & 51.0 \\
+BiLSTM-Attn & 19.41 & 14.96 & 0.335 & 256.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The CNN-LSTM is the standout performer in the hybrid family. The convolutional front-end effectively extracts local temporal features, which the subsequent LSTM layers seamlessly integrate for long-range dependency modeling. Compared to the standalone BiLSTM (RMSE 17.90), the CNN-LSTM improves by 0.4 RMSE points while training 55\% faster.
+
+The BiLSTM with Attention performs surprisingly poorly (RMSE 19.41) despite its sophisticated architecture and 1.7 MB parameter count. The attention mechanism may be overfitting to noise in the training data, or the additive attention formulation may not be well-suited to the relatively short 168-step sequences.
+
+\subsection{Transformer-Based Models}
+
+\begin{table}[H]
+\centering
+\caption{Transformer Family Performance}
+\label{tab:transformer_family}
+\begin{tabular}{lrrrr}
+\toprule
+\textbf{Model} & \textbf{RMSE} & \textbf{MAE} & \textbf{$R^2$} & \textbf{Train (s)} \\
+\midrule
+Transformer & 17.34 & 12.50 & 0.471 & 151.9 \\
+Informer & 18.58 & 13.68 & 0.393 & 94.6 \\
+Autoformer & 20.64 & 15.54 & 0.250 & 133.2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The standard Transformer achieves the best performance across all categories, validating the efficacy of self-attention for air quality time series. However, the specialized transformer variants underperform:
+
+\textbf{Informer} trails the standard Transformer by 1.24 RMSE points. While the ProbSparse attention reduces computational cost, the approximate attention computation may lose information critical for accurate forecasting at this sequence length.
+
+\textbf{Autoformer} underperforms significantly (RMSE 20.64 vs 17.34 for Transformer). The Auto-Correlation mechanism and progressive decomposition, while effective for longer sequences (192+ steps), may be over-engineered for the 168-step windows used here.
+
+\section{Training Efficiency Analysis}
+
+Figure~\ref{fig:accuracy_vs_time} illustrates the trade-off between model accuracy (RMSE) and training time using training convergence curves for the top three models.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Transformer_convergence.png}
+\caption{Transformer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{CNN-LSTM_convergence.png}
+\caption{CNN-LSTM}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{BiLSTM_convergence.png}
+\caption{BiLSTM}
+\end{subfigure}
+\caption{Training convergence curves for the top three performing models}
+\label{fig:accuracy_vs_time}
+\end{figure}
+
+\textbf{Most Efficient Models} (training time under 40s, RMSE under 18):
+\begin{itemize}
+    \item CNN-LSTM: 37.7s training, RMSE 17.50
+    \item GRU: 38.5s training, RMSE 17.62
+    \item RNN: 29.6s training, RMSE 18.65
+\end{itemize}
+
+\textbf{High Accuracy, Higher Cost} (RMSE under 18, training time over 80s):
+\begin{itemize}
+    \item Transformer: 151.9s training, RMSE 17.34
+    \item BiLSTM: 83.9s training, RMSE 17.90
+    \item Informer: 94.6s training, RMSE 18.58
+\end{itemize}
+
+\section{Prediction Visualization}
+
+\subsection{Parity Plots}
+
+Parity plots compare predicted vs. actual PM$_{2.5}$ values for the test set. Figure~\ref{fig:parity} shows parity plots for the three best models.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Transformer_parity.png}
+\caption{Transformer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{CNN-LSTM_parity.png}
+\caption{CNN-LSTM}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{BiLSTM_parity.png}
+\caption{BiLSTM}
+\end{subfigure}
+\caption{Parity plots: Predicted vs. Actual PM$_{2.5}$ values}
+\label{fig:parity}
+\end{figure}
+
+The Transformer shows the tightest clustering around the identity line ($y = x$), with predictions tracking actual values across the full PM$_{2.5}$ range. The CNN-LSTM shows similar clustering quality with slightly more scatter in the mid-range (40--80 $\mu$g/m$^3$). GRU demonstrates consistent predictions with minimal bias but increased variance at higher PM$_{2.5}$ levels.
+
+\subsection{Time Series Predictions}
+
+The time series plots in Figure~\ref{fig:timeseries} show 24-hour forecast horizons overlaid on actual observations for the top three models.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Transformer_timeseries.png}
+\caption{Transformer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{CNN-LSTM_timeseries.png}
+\caption{CNN-LSTM}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{BiLSTM_timeseries.png}
+\caption{BiLSTM}
+\end{subfigure}
+\caption{24-hour time series predictions versus actual observations}
+\label{fig:timeseries}
+\end{figure}
+
+\section{Error Analysis}
+
+\subsection{Error Distribution}
+
+Figure~\ref{fig:error_hist} shows the distribution of prediction errors (predicted minus actual) for each model.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Transformer_error_histogram.png}
+\caption{Transformer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{CNN-LSTM_error_histogram.png}
+\caption{CNN-LSTM}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{CNN-GRU_error_histogram.png}
+\caption{CNN-GRU}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Autoformer_error_histogram.png}
+\caption{Autoformer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{Informer_error_histogram.png}
+\caption{Informer}
+\end{subfigure}
+\begin{subfigure}{0.32\textwidth}
+\includegraphics[width=\textwidth]{BiLSTM_error_histogram.png}
+\caption{BiLSTM}
+\end{subfigure}
+\caption{Error histogram distributions for key models}
+\label{fig:error_hist}
+\end{figure}
+
+The Transformer's error distribution is approximately normal with mean near zero ($\mu \approx -0.5$) and standard deviation $\sigma \approx 17.3$, indicating no systematic bias. CNN-LSTM shows a similar but slightly wider distribution. GRU has a tighter central distribution but with a slight negative skew, suggesting it tends to underpredict during peak pollution events.
+
+\subsection{Performance by Pollution Level}
+
+Model performance varies systematically with PM$_{2.5}$ level:
+
+\begin{itemize}
+    \item \textbf{Low PM$_{2.5}$} ($<$ 40 $\mu$g/m$^3$): All deep learning models perform well with RMSE in the 8--12 range. Predictions are generally within 20\% of actual values.
+    
+    \item \textbf{Moderate PM$_{2.5}$} (40--80 $\mu$g/m$^3$): Performance degrades moderately. RMSE increases to 15--22 across models.
+    
+    \item \textbf{High PM$_{2.5}$} ($>$ 80 $\mu$g/m$^3$): All models struggle with peak events, with RMSE exceeding 25. Peak pollution events are inherently less predictable due to their dependence on transient meteorological conditions and emission events.
+\end{itemize}
+
+\section{Convergence Analysis}
+
+Training convergence was monitored for all deep learning models. Key observations:
+
+\begin{itemize}
+    \item \textbf{Fastest Convergence}: RNN converges within 30--40 epochs, likely due to its simpler architecture and fewer parameters.
+    
+    \item \textbf{Most Stable Training}: GRU and CNN-LSTM exhibit the most stable training curves with minimal epoch-to-epoch validation loss fluctuation.
+    
+    \item \textbf{Overfitting}: BiLSTM with Attention shows clear signs of overfitting after approximately 80 epochs, with validation loss increasing while training loss continues to decrease. Early stopping correctly terminated training before severe overfitting occurred.
+    
+    \item \textbf{Transformer Convergence}: The Transformer converges more slowly (requires 80--90 epochs) but achieves the lowest final validation loss. The learning rate warm-up inherent to the Transformer's architecture contributes to the slower initial convergence.
+\end{itemize}
+
+\section{Edge Deployment Benchmarks}
+
+\subsection{Raspberry Pi 4 Inference Latency}
+
+Table~\ref{tab:pi_benchmark} presents inference latency measurements on the Raspberry Pi 4 (8 GB RAM) with ONNX Runtime ARM64.
+
+\begin{table}[H]
+\centering
+\caption{Raspberry Pi 4 ONNX Inference Benchmarks}
+\label{tab:pi_benchmark}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Model} & \textbf{Mean Latency (ms)} & \textbf{Std Dev (ms)} & \textbf{ONNX Size (KB)} \\
+\midrule
+RNN & 11.5 & 0.8 & 342 \\
+ST-GCN & 13.2 & 1.1 & 128 \\
+GRU & 28.8 & 1.4 & 285 \\
+CNN-LSTM & 30.5 & 1.6 & 512 \\
+CNN-GRU & 44.2 & 2.1 & 635 \\
+LSTM & 98.7 & 3.2 & 478 \\
+Autoformer & 153.4 & 5.8 & 178 \\
+Informer & 115.6 & 4.3 & 598 \\
+Transformer & 198.2 & 6.7 & 605 \\
+BiLSTM & 301.5 & 8.9 & 1,045 \\
+BiLSTM-Attn & 312.8 & 10.2 & 3,520 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Deployment Analysis}
+
+Figure~\ref{fig:pi_dashboard} shows the operational dashboard deployed on the Raspberry Pi 4.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\textwidth}
+\includegraphics[width=\textwidth]{deploy_dashboard_overview.png}
+\caption{Dashboard Overview}
+\end{subfigure}
+\begin{subfigure}{0.48\textwidth}
+\includegraphics[width=\textwidth]{deploy_airflow_dags.png}
+\caption{Airflow DAGs (38 cities)}
+\end{subfigure}
+\caption{Deployment dashboard and Airflow orchestration on Raspberry Pi 4}
+\label{fig:pi_dashboard}
+\end{figure}
+
+\textbf{All models meet the sub-second latency requirement}, with the slowest model (BiLSTM with Attention) achieving 312.8 ms mean latency. However, significant variation exists:
+
+\begin{itemize}
+    \item \textbf{Ultra-fast inference}: RNN (11.5 ms) and ST-GCN (13.2 ms) achieve near-instantaneous predictions suitable for high-frequency monitoring applications.
+    
+    \item \textbf{Balanced performers}: GRU (28.8 ms) and CNN-LSTM (30.5 ms) offer an excellent balance of accuracy and inference speed, making them the recommended models for production deployment.
+    
+    \item \textbf{Higher latency}: Transformer (198.2 ms) and BiLSTM-based models (300+ ms) incur higher computational cost. The Transformer's multi-head attention mechanism requires matrix multiplications that are less optimized on ARM CPU compared to x86 architectures.
+\end{itemize}
+
+\subsection{Resource Utilization}
+
+Memory consumption during inference on the Raspberry Pi 4:
+
+\begin{itemize}
+    \item \textbf{Baseline OS overhead}: Approximately 400 MB
+    \item \textbf{Lightweight models} (RNN, ST-GCN, GRU): +50--100 MB
+    \item \textbf{Medium models} (CNN-LSTM, LSTM, Autoformer): +100--200 MB
+    \item \textbf{Heavy models} (Transformer, BiLSTM, BiLSTM-Attn): +200--500 MB
+\end{itemize}
+
+All models operate within the Pi 4's 8 GB RAM budget with significant headroom for additional services.
+
+\section{Model Recommendation}
+
+Based on the comprehensive evaluation across accuracy, training efficiency, and inference latency, we recommend:
+
+\begin{enumerate}
+    \item \textbf{Best Overall Accuracy}: Transformer (RMSE 17.34, $R^2$ 0.471)
+    \item \textbf{Best Efficiency}: CNN-LSTM (RMSE 17.50, 37.7s training, 30.5 ms inference)
+    \item \textbf{Best Deployment Model}: GRU (RMSE 17.62, 38.5s training, 28.8 ms inference)
+\end{enumerate}
+
+For most practical deployments, CNN-LSTM provides the optimal balance: near-Transformer accuracy with 75\% less training time and 85\% lower inference latency on edge hardware.

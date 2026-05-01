@@ -1,0 +1,396 @@
+\chapter{Implementation}
+
+\section{Project Structure}
+
+The project codebase follows a modular organization with clear separation of concerns. The directory structure is organized as follows:
+
+\lstset{basicstyle=\ttfamily\footnotesize, numbers=none, frame=none}
+\begin{lstlisting}
+project_root/
+  data/kaggle_dataset/          # Raw and processed Hyderabad data
+  src/
+    ingestion/                  # Open-Meteo API data fetcher
+    models/                     # Model architecture definitions
+    preprocessing/              # Data cleaning and normalization
+    training/                   # Training loop and optimization
+    evaluation/                 # Metrics computation and plotting
+    deployment/                 # ONNX conversion and Pi tools
+  scripts/
+    individual_trainers/        # Per-model training scripts
+  outputs/hyderabad/            # All 14 model outputs and results
+    <model_name>/
+      model.pth                 # PyTorch checkpoint
+      metrics.json              # Performance metrics
+      plots/                    # Convergence, parity, timeseries plots
+      config.json               # Best hyperparameters
+    all_models_comparison.csv   # Master comparison table
+\end{lstlisting}
+
+\section{Data Pipeline Implementation}
+
+\subsection{Data Fetching}
+
+The Open-Meteo API client is implemented in \texttt{src/ingestion/india\_aq.py}. The API request is constructed with the following parameters:
+
+\begin{itemize}
+    \item \textbf{Coordinates}: Latitude 17.3850, Longitude 78.4867 (Hyderabad)
+    \item \textbf{Hourly Variables}: PM$_{2.5}$, PM$_{10}$, CO, NO$_2$, SO$_2$, O$_3$, European AQI
+    \item \textbf{Time Range}: One full calendar year of historical data
+    \item \textbf{Timezone}: Asia/Kolkata (UTC+5:30)
+\end{itemize}
+
+The API response is parsed and stored as a CSV file with columns: \texttt{timestamp, pm2\_5, pm10, carbon\_monoxide, nitrogen\_dioxide, sulphur\_dioxide, ozone, us\_aqi}. The CSV format ensures portability and enables easy inspection with standard tools.
+
+\subsection{Preprocessing Pipeline}
+
+The preprocessing pipeline is implemented as a series of transformations:
+
+\textbf{Step 1: Load and Validate.} The raw CSV is loaded using pandas. Basic validation checks confirm that all expected columns are present and that the timestamp column is monotonically increasing.
+
+\textbf{Step 2: Handle Missing Values.} Gaps in the time series are identified by checking for missing hourly timestamps. Missing pollutant values are imputed using linear interpolation:
+
+\begin{equation}
+    y_{\text{missing}} = y_{t_1} + \frac{y_{t_2} - y_{t_1}}{t_2 - t_1} \times (t_{\text{missing}} - t_1)
+\end{equation}
+
+\textbf{Step 3: Feature-Target Split.} The PM$_{2.5}$ column is separated as the target variable $y$, while the remaining columns (PM$_{10}$, CO, NO$_2$, SO$_2$, O$_3$, AQI) serve as features $X$.
+
+\textbf{Step 4: Normalization.} Min-Max scaling parameters ($x_{\min}$, $x_{\max}$) are computed from the training set and applied consistently to all three splits (train, validation, test). The scaler objects are serialized using pickle for use during inference.
+
+\textbf{Step 5: Sliding Window Construction.} A sliding window of 168 hours (7 days) creates input-output pairs. For each window position $t$, the input $X[t-168:t]$ and output $y[t:t+24]$ are paired. This yields approximately 8,500 training samples from the full dataset.
+
+\subsection{Train/Val/Test Split}
+
+The chronological split is implemented as:
+
+\begin{lstlisting}[language=Python]
+n_total = len(dataset)
+n_train = int(0.70 * n_total)
+n_val   = int(0.15 * n_total)
+n_test  = n_total - n_train - n_val
+
+train_data = dataset[:n_train]
+val_data   = dataset[n_train:n_train + n_val]
+test_data  = dataset[n_train + n_val:]
+\end{lstlisting}
+
+\section{Model Implementation}
+
+\subsection{Statistical Models}
+
+Statistical models are implemented using the \texttt{statsmodels} library:
+
+\textbf{ARIMA} uses \texttt{ARIMA(endog=train\_y, order=(5,1,2))} from \texttt{statsmodels.tsa.arima.model}. After fitting, 24-step forecasts are generated using the \texttt{forecast(steps=24)} method. The model is refit with each new observation in a rolling manner.
+
+\textbf{SARIMA} uses \texttt{SARIMAX(endog=train\_y, order=(2,1,1), seasonal\_order=(1,1,1,24))}. The seasonal period of 24 corresponds to the diurnal cycle.
+
+\textbf{VAR} uses \texttt{VAR(endog=train\_data)} from \texttt{statsmodels.tsa.api}. The VAR model requires all 7 features as endogenous variables. The order $p = 2$ is selected using the Akaike Information Criterion (AIC).
+
+\subsection{Deep Learning Models}
+
+All deep learning models are implemented in PyTorch and share a common \texttt{BaseForecaster} interface:
+
+\begin{lstlisting}[language=Python]
+class BaseForecaster(nn.Module):
+    def __init__(self, input_dim=7, hidden_dim=128,
+                 output_dim=24, num_layers=2):
+        super().__init__()
+        # Common parameters stored, architecture
+        # defined by subclass
+        
+    def forward(self, x):
+        # x: (batch, 168, 7) -> (batch, 24)
+        raise NotImplementedError
+\end{lstlisting}
+
+\textbf{LSTM Implementation.} The LSTM model is defined as:
+
+\begin{lstlisting}[language=Python]
+class LSTMForecaster(BaseForecaster):
+    def __init__(self, input_dim=7, hidden_dim=128,
+                 output_dim=24, num_layers=2, dropout=0.2):
+        super().__init__()
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.fc = nn.Linear(hidden_dim, output_dim)
+    
+    def forward(self, x):
+        out, (h_n, c_n) = self.lstm(x)
+        # Use last hidden state
+        return self.fc(out[:, -1, :])
+\end{lstlisting}
+
+\textbf{GRU Implementation.} The GRU follows an identical interface with \texttt{nn.GRU} replacing \texttt{nn.LSTM}. The key difference is the absence of a separate cell state, reducing the parameter count.
+
+\textbf{BiLSTM Implementation.} Bidirectionality is enabled by setting \texttt{bidirectional=True} in the LSTM constructor, which doubles the effective hidden dimension. The output linear layer adapts accordingly to accept $2 \times$ \texttt{hidden\_dim} features.
+
+\textbf{CNN-LSTM Implementation.} The convolutional front-end uses two 1D convolution layers:
+
+\begin{lstlisting}[language=Python]
+self.conv1 = nn.Conv1d(in_channels=7, out_channels=64,
+                        kernel_size=3, padding=1)
+self.conv2 = nn.Conv1d(in_channels=64, out_channels=128,
+                        kernel_size=3, padding=1)
+# After convolutions:
+self.lstm = nn.LSTM(input_size=128, hidden_size=128,
+                     num_layers=2, batch_first=True)
+\end{lstlisting}
+
+The input tensor is transposed from $(B, 168, 7)$ to $(B, 7, 168)$ for 1D convolution (channels-first format), then transposed back for LSTM processing.
+
+\textbf{CNN-GRU Implementation.} Identical to CNN-LSTM with \texttt{nn.GRU} replacing the LSTM layers.
+
+\textbf{BiLSTM with Attention Implementation.} The attention mechanism is implemented as a separate module:
+
+\begin{lstlisting}[language=Python]
+class Attention(nn.Module):
+    def __init__(self, hidden_dim):
+        super().__init__()
+        self.W = nn.Linear(hidden_dim * 2, hidden_dim)
+        self.v = nn.Linear(hidden_dim, 1)
+    
+    def forward(self, encoder_outputs):
+        # encoder_outputs: (batch, seq_len, hidden_dim*2)
+        energy = torch.tanh(self.W(encoder_outputs))
+        attention = F.softmax(self.v(energy), dim=1)
+        context = torch.sum(attention * encoder_outputs, dim=1)
+        return context, attention
+\end{lstlisting}
+
+The context vector is passed through a final linear layer to produce the 24-hour forecast.
+
+\textbf{Transformer Implementation.} The Transformer uses PyTorch's \texttt{nn.TransformerEncoder}:
+
+\begin{lstlisting}[language=Python]
+self.pos_encoder = PositionalEncoding(d_model=128, max_len=200)
+self.encoder_layer = nn.TransformerEncoderLayer(
+    d_model=128, nhead=4, dim_feedforward=512,
+    dropout=0.1, batch_first=True
+)
+self.transformer = nn.TransformerEncoder(
+    self.encoder_layer, num_layers=4
+)
+\end{lstlisting}
+
+\textbf{Informer and Autoformer Implementations.} These are implemented as custom architectures following the original papers, with modifications to accept the (168, 7) input shape. The ProbSparse attention in Informer is approximated by selecting the top-$u$ queries based on the sparsity measurement. Autoformer's Auto-Correlation uses FFT for efficient period-based dependency computation.
+
+\textbf{ST-GCN Implementation.} The graph convolution uses a learned adjacency matrix:
+
+\begin{lstlisting}[language=Python]
+# Learn node embeddings
+self.node_emb = nn.Parameter(
+    torch.randn(num_nodes, embed_dim)
+)
+# Compute adjacency via spatial attention
+adj = F.softmax(
+    F.relu(torch.mm(self.node_emb, self.node_emb.T)),
+    dim=1
+)
+\end{lstlisting}
+
+Temporal modeling uses gated 1D convolutions with kernel size 3.
+
+\section{Training Pipeline}
+
+\subsection{Training Loop}
+
+All deep learning models use a standardized training loop:
+
+\begin{lstlisting}[language=Python]
+def train_model(model, train_loader, val_loader,
+                epochs=200, lr=1e-3, patience=20):
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = ReduceLROnPlateau(optimizer, mode='min',
+                                   factor=0.5, patience=10)
+    criterion = nn.MSELoss()
+    best_val_loss = float('inf')
+    patience_counter = 0
+    
+    for epoch in range(epochs):
+        # Training phase
+        model.train()
+        train_loss = 0
+        for X_batch, y_batch in train_loader:
+            optimizer.zero_grad()
+            y_pred = model(X_batch)
+            loss = criterion(y_pred, y_batch)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        
+        # Validation phase
+        model.eval()
+        val_loss = 0
+        with torch.no_grad():
+            for X_batch, y_batch in val_loader:
+                y_pred = model(X_batch)
+                val_loss += criterion(y_pred, y_batch).item()
+        
+        # Early stopping check
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            torch.save(model.state_dict(), 'best_model.pth')
+        else:
+            patience_counter += 1
+            if patience_counter >= patience:
+                break
+        
+        scheduler.step(val_loss)
+    
+    # Restore best weights
+    model.load_state_dict(torch.load('best_model.pth'))
+    return model
+\end{lstlisting}
+
+\subsection{Hyperparameter Optimization with Optuna}
+
+The Optuna integration wraps the training loop within an objective function:
+
+\begin{lstlisting}[language=Python]
+def objective(trial):
+    # Suggest hyperparameters
+    hidden_dim = trial.suggest_categorical(
+        'hidden_dim', [64, 128, 256]
+    )
+    num_layers = trial.suggest_int('num_layers', 1, 3)
+    dropout = trial.suggest_float('dropout', 0.1, 0.5)
+    lr = trial.suggest_float('lr', 1e-4, 1e-2, log=True)
+    
+    # Create model with suggested params
+    model = ModelClass(hidden_dim, num_layers, dropout)
+    
+    # Train and evaluate
+    model = train_model(model, train_loader, val_loader,
+                       lr=lr)
+    val_rmse = evaluate_model(model, val_loader)
+    
+    return val_rmse  # Optuna minimizes this
+
+study = optuna.create_study(
+    direction='minimize',
+    sampler=TPESampler(seed=42)
+)
+study.optimize(objective, n_trials=20)
+\end{lstlisting}
+
+\subsection{Best Hyperparameters Found}
+
+Table~\ref{tab:best_hparams} presents the optimal hyperparameters found by Optuna for the top-performing models.
+
+\begin{table}[H]
+\centering
+\caption{Optimal Hyperparameters for Top Models}
+\label{tab:best_hparams}
+\begin{tabular}{lcccccl}
+\toprule
+\textbf{Model} & \textbf{Hidden} & \textbf{Layers} & \textbf{Dropout} & \textbf{LR} & \textbf{Epochs} \\
+\midrule
+Transformer & 128 & 4 & 0.10 & 9.2e-4 & 87 \\
+CNN-LSTM & 128 & 2 & 0.20 & 5.1e-4 & 123 \\
+GRU & 128 & 2 & 0.15 & 3.7e-4 & 145 \\
+BiLSTM & 128 & 2 & 0.20 & 4.8e-4 & 98 \\
+Informer & 128 & 3 & 0.10 & 7.2e-4 & 112 \\
+RNN & 128 & 2 & 0.20 & 2.9e-4 & 156 \\
+CNN-GRU & 128 & 2 & 0.25 & 6.3e-4 & 108 \\
+BiLSTM-Attn & 128 & 2 & 0.30 & 3.1e-4 & 135 \\
+LSTM & 128 & 2 & 0.20 & 5.4e-4 & 118 \\
+Autoformer & 128 & 2 & 0.10 & 8.1e-4 & 94 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Reproducibility Measures}
+
+To ensure reproducibility, the following measures are implemented:
+
+\begin{itemize}
+    \item \textbf{Fixed Random Seed}: Python's random module, NumPy, and PyTorch are all seeded with the value 42.
+    \item \textbf{Deterministic Operations}: \texttt{torch.backends.cudnn.deterministic = True} and \texttt{torch.backends.cudnn.benchmark = False} are set for GPU operations.
+    \item \textbf{Data Split Consistency}: The chronological split uses fixed proportions (70/15/15) computed deterministically.
+    \item \textbf{Config Serialization}: All hyperparameters and training configurations are saved to \texttt{config.json} alongside each model checkpoint.
+\end{itemize}
+
+\section{ONNX Conversion}
+
+Trained PyTorch models are converted to ONNX format for edge deployment. The conversion process:
+
+\begin{enumerate}
+    \item \textbf{Model Preparation}: The trained model is loaded and set to evaluation mode.
+    \item \textbf{Example Input}: A dummy input tensor of shape (1, 168, 7) --- representing a single 7-day window --- is created.
+    \item \textbf{Tracing}: \texttt{torch.onnx.export()} traces the model computation graph:
+    
+    \begin{lstlisting}[language=Python]
+    torch.onnx.export(
+        model, dummy_input, "model.onnx",
+        input_names=['input'],
+        output_names=['output'],
+        dynamic_axes={
+            'input': {0: 'batch_size'},
+            'output': {0: 'batch_size'}
+        },
+        opset_version=14
+    )
+    \end{lstlisting}
+    
+    \item \textbf{Validation}: The exported model is validated using ONNX's built-in checker.
+    \item \textbf{Inference Verification}: Outputs from the ONNX model are compared against the original PyTorch model to verify numerical equivalence (tolerance: $10^{-5}$).
+\end{enumerate}
+
+\section{Raspberry Pi Deployment}
+
+\subsection{Hardware Specifications}
+
+The Raspberry Pi 4 used for deployment has the following specifications:
+
+\begin{table}[H]
+\centering
+\caption{Raspberry Pi 4 Hardware Specifications}
+\label{tab:pi_specs}
+\begin{tabular}{ll}
+\toprule
+\textbf{Property} & \textbf{Value} \\
+\midrule
+Model & Raspberry Pi 4 Model B Rev 1.5 \\
+CPU & Quad-core ARM Cortex-A72 @ 2.0 GHz (overclocked) \\
+RAM & 8 GB LPDDR4 \\
+GPU & VideoCore VI @ 500 MHz \\
+Storage & 59 GB (32 GB used) microSD \\
+OS & Debian GNU/Linux 13 (trixie) arm64 \\
+Kernel & Linux 6.12.75+rpt-rpi-v8 \\
+Python & 3.13.5 \\
+CPU Governor & Performance (all cores at max frequency) \\
+L1 Cache & 128 KiB data + 192 KiB instruction per core \\
+L2 Cache & 1 MiB shared \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The Pi runs with the \textbf{performance} CPU governor, meaning all four Cortex-A72 cores operate at their maximum frequency of 2.0 GHz continuously. This is a factory overclock from the stock 1.5 GHz, providing 33\% additional compute throughput. The memory split allocates 948 MB to the ARM CPU and 76 MB to the GPU, optimized for headless inference workloads.
+
+\subsection{Setup}
+
+The Raspberry Pi 4 (8 GB RAM) deployment involves:
+
+\begin{enumerate}
+    \item \textbf{OS Installation}: Raspberry Pi OS (64-bit, Debian Bullseye) is installed on a 32 GB microSD card.
+    \item \textbf{Runtime Installation}: \texttt{pip install onnxruntime} installs the ARM64-optimized ONNX Runtime.
+    \item \textbf{Model Transfer}: All 14 ONNX models are transferred to the Pi via SCP.
+    \item \textbf{Benchmark Script}: A Python script loads each ONNX model, performs 10 warmup inferences, then measures latency over 100 inference runs.
+\end{enumerate}
+
+\subsection{Inference Benchmark}
+
+Each model is benchmarked with a fixed input of shape (1, 168, 7). The benchmark measures:
+\begin{itemize}
+    \item \textbf{Mean Latency}: Average time per inference (ms)
+    \item \textbf{Standard Deviation}: Variability across runs (ms)
+    \item \textbf{Memory Usage}: Peak RAM consumption during inference (MB)
+\end{itemize}
+
+Results are saved to \texttt{benchmark\_results.json} for analysis.

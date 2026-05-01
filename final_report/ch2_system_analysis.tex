@@ -1,0 +1,195 @@
+\chapter{System Analysis}
+
+\section{Literature Review}
+
+\subsection{Statistical Approaches to Time Series Forecasting}
+
+Classical statistical methods have long been the foundation of time series forecasting. The Autoregressive Integrated Moving Average (ARIMA) model, introduced by Box and Jenkins, remains widely used due to its simplicity and interpretability. ARIMA models temporal dependencies through three components: autoregression (AR), differencing (I), and moving average (MA). The Seasonal ARIMA (SARIMA) extends this framework by incorporating seasonal components, making it suitable for data with recurring patterns.
+
+Vector Autoregression (VAR) generalizes the univariate AR model to multivariate settings, capturing linear interdependencies among multiple time series. This is particularly relevant for air quality forecasting where multiple pollutants exhibit cross-correlations. However, VAR's performance degrades as the number of variables increases due to the rapid growth of parameters.
+
+Studies by Zhang et al. and Kumar et al. have applied these statistical methods to air quality forecasting with mixed results. While ARIMA can capture short-term linear trends, it fundamentally assumes linearity and stationarity, assumptions frequently violated by the complex nonlinear dynamics of pollutant concentrations driven by meteorological conditions, emission sources, and atmospheric chemistry.
+
+\subsection{Deep Learning Sequence Models}
+
+The advent of deep learning has revolutionized time series forecasting by enabling models to learn complex nonlinear patterns directly from data. Recurrent Neural Networks (RNNs) were among the first neural architectures designed for sequential data, maintaining a hidden state that propagates information across time steps. However, vanilla RNNs suffer from the vanishing gradient problem, limiting their ability to capture long-range dependencies.
+
+Long Short-Term Memory (LSTM) networks, proposed by Hochreiter and Schmidhuber, address this limitation through a gating mechanism comprising input, forget, and output gates. These gates regulate information flow, enabling the network to selectively remember or forget information over extended sequences. LSTMs have been extensively applied to air quality forecasting, demonstrating superior performance over statistical baselines.
+
+Gated Recurrent Units (GRUs), introduced by Cho et al., simplify the LSTM architecture by combining the input and forget gates into a single ``update gate.'' This reduces the parameter count while maintaining comparable performance, making GRUs more computationally efficient for resource-constrained deployment scenarios.
+
+Bidirectional LSTMs (BiLSTMs) process sequences in both forward and backward directions, enabling the network to capture context from both past and future time steps. While this improves feature extraction, it introduces additional computational overhead and requires full sequence availability, limiting real-time applicability.
+
+\subsection{Hybrid Deep Learning Architectures}
+
+Recognizing that air quality time series exhibit both temporal dependencies and local patterns, researchers have developed hybrid architectures combining convolutional and recurrent components. CNN-LSTM models apply 1D convolutional layers to extract local feature patterns from the input window, followed by LSTM layers to model temporal dependencies. The convolutional front-end effectively acts as an automated feature extractor, identifying relevant patterns such as diurnal cycles and pollutant correlations.
+
+CNN-GRU variants follow the same principle but use GRU layers for the recurrent component, offering a favorable accuracy-to-efficiency trade-off. BiLSTM with Attention augments the bidirectional architecture with an attention mechanism that learns to weight the importance of different time steps, enabling the model to focus on the most relevant historical observations.
+
+\subsection{Transformer-Based Forecasting}
+
+The Transformer architecture, originally developed for natural language processing by Vaswani et al., has been successfully adapted for time series forecasting. Transformers replace recurrence with self-attention, enabling direct modeling of dependencies between any pair of time steps regardless of their temporal distance. The multi-head attention mechanism allows the model to attend to information from different representation subspaces simultaneously.
+
+The Informer architecture improves upon the standard Transformer for long sequence time series forecasting through several innovations: ProbSparse self-attention, which reduces the quadratic complexity of standard attention by selectively computing only the most influential query-key pairs; a self-attention distilling operation that prunes redundant attention scores; and a generative-style decoder that produces predictions in a single forward pass.
+
+Autoformer introduces an Auto-Correlation mechanism that replaces self-attention with a progressive decomposition architecture. It explicitly models the time series as a composition of trend and seasonal components, leveraging fast Fourier transforms for efficient computation of period-based dependencies. This inductive bias towards seasonal decomposition is particularly relevant for air quality data exhibiting strong diurnal and weekly patterns.
+
+\subsection{Spatio-Temporal Graph Convolutional Networks}
+
+Spatio-Temporal Graph Convolutional Networks (ST-GCNs) represent a recent advance in modeling data with both spatial and temporal dimensions. They construct a graph where nodes represent spatial locations and edges represent relationships (e.g., geographic proximity, wind patterns). Graph convolutions capture spatial dependencies, while temporal convolutions model sequential patterns. While primarily designed for multi-location sensor networks, ST-GCN can be adapted for single-city multivariate forecasting by treating different pollutants as nodes in a correlation graph.
+
+\subsection{Edge Deployment of ML Models}
+
+Deploying machine learning models on edge devices presents unique challenges: limited computational resources, memory constraints, energy budgets, and the need for real-time inference. The ONNX (Open Neural Network Exchange) format has emerged as a standard for cross-platform model deployment, enabling models trained in PyTorch or TensorFlow to be executed efficiently on diverse hardware targets via ONNX Runtime.
+
+Research by Lane et al. and Wang et al. has demonstrated the feasibility of deploying neural network models on Raspberry Pi-class devices for environmental monitoring. Key optimization techniques include model quantization (FP32 to INT8), operator fusion, and graph optimization. Dynamic quantization, in particular, reduces model size by up to 75\% while maintaining accuracy within acceptable margins.
+
+\section{Feasibility Study}
+
+\subsection{Technical Feasibility}
+
+The technical feasibility of this project is assessed across five dimensions:
+
+\textbf{Data Availability}: The Open-Meteo API provides free, high-resolution hourly air quality data with global coverage, including all required pollutant parameters (PM$_{2.5}$, PM$_{10}$, CO, NO$_2$, SO$_2$, O$_3$, AQI) and meteorological variables. The API is well-documented, offers JSON responses, and has no rate limiting for non-commercial use. With one full year of hourly data yielding 8,784 observations, the dataset size is sufficient for training deep learning models.
+
+\textbf{Computational Resources}: Model training was conducted on a laptop equipped with an NVIDIA RTX 2050 GPU (4 GB VRAM) and Intel Core i5-12450H CPU. Table~\ref{tab:gpu_speedup} shows that the RTX 2050 provides approximately 24x speedup over CPU-only training for LSTM models, making deep learning training feasible within a reasonable timeframe. The 4 GB VRAM constrains batch size and model size but proves sufficient for all evaluated architectures.
+
+\begin{table}[H]
+\centering
+\caption{GPU vs CPU Training Speedup (LSTM Model)}
+\label{tab:gpu_speedup}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Platform} & \textbf{Training Time (s)} & \textbf{Speedup} \\
+\midrule
+CPU (i5-12450H) & 14.17 & 1$\times$ \\
+RTX 2050 (GPU) & 0.59 & 24$\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Edge Deployment}: The Raspberry Pi 4 Model B (8 GB RAM) provides sufficient resources for running ONNX-optimized inference across multiple models. Our benchmarks show that even the largest models (BiLSTM with Attention) achieve inference latency under 350 ms, well within the target of sub-second latency per prediction.
+
+\textbf{Software Ecosystem}: All required software is open-source and freely available: Python 3.9+, PyTorch 2.2.2, scikit-learn, Optuna, ONNX Runtime, statsmodels, pandas, NumPy, and matplotlib. No proprietary software is required.
+
+\textbf{Development Expertise}: The team possesses the necessary skills in Python programming, machine learning, deep learning, and time series analysis, developed through coursework and practical projects.
+
+\subsection{Operational Feasibility}
+
+The system is designed for autonomous operation with minimal human intervention. The data ingestion pipeline fetches new observations hourly, preprocesses them, and feeds them to the inference pipeline. Model predictions can be generated on-demand or on a schedule.
+
+The Raspberry Pi 4 operates on only 3 to 5 watts of power, translating to an annual electricity cost of approximately Rs.~250 at Indian residential electricity rates. This makes the system economically viable for widespread deployment.
+
+\subsection{Economic Feasibility}
+
+Table~\ref{tab:hw_cost} presents the bill of materials for a single edge deployment unit.
+
+\begin{table}[H]
+\centering
+\caption{Hardware Cost Breakdown}
+\label{tab:hw_cost}
+\begin{tabular}{lr}
+\toprule
+\textbf{Component} & \textbf{Cost (Rs.)} \\
+\midrule
+Raspberry Pi 4 (4 GB) & 5,000 \\
+32 GB microSD Card & 400 \\
+Power Supply (5V 3A) & 500 \\
+Case and Cooling & 600 \\
+\midrule
+\textbf{Total} & \textbf{6,500} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At Rs.~6,500 per unit plus Rs.~250 annual electricity, the system is highly cost-effective compared to commercial air quality monitoring stations, which typically cost Rs.~5--15 lakhs each.
+
+\section{Software Requirements}
+
+\subsection{Functional Requirements}
+
+\begin{enumerate}[label=FR-\arabic*]
+    \item \textbf{Data Ingestion}: The system shall automatically fetch hourly air quality observations from the Open-Meteo API for Hyderabad at configurable intervals.
+    \item \textbf{Data Preprocessing}: The system shall handle missing values through linear interpolation and apply Min-Max normalization to all features.
+    \item \textbf{Sliding Window Construction}: The system shall construct input-output pairs using a 168-hour sliding window (7 days) and 24-hour prediction horizon.
+    \item \textbf{Model Training}: The system shall support training of all 14 model architectures with configurable hyperparameters and GPU acceleration.
+    \item \textbf{Hyperparameter Optimization}: The system shall perform Optuna-based Bayesian optimization with a minimum of 20 trials per model.
+    \item \textbf{Model Persistence}: The system shall save trained model checkpoints in both PyTorch (.pth) and ONNX (.onnx) formats.
+    \item \textbf{Inference}: The system shall perform real-time inference using ONNX Runtime, supporting both single-step and multi-step (24-hour) prediction.
+    \item \textbf{Metrics Computation}: The system shall compute and store RMSE, MAE, and $R^2$ metrics for every model on the held-out test set.
+    \item \textbf{Visualization}: The system shall generate convergence plots, error histograms, parity plots, and time series prediction visualizations for each model.
+    \item \textbf{Comparison}: The system shall produce a comprehensive comparison table ranking all models by performance metrics.
+    \item \textbf{Edge Deployment}: The system shall support ONNX model deployment on a Raspberry Pi 4 with latency benchmarking.
+    \item \textbf{Reproducibility}: The system shall use fixed random seeds and document all hyperparameter configurations.
+\end{enumerate}
+
+\subsection{Non-Functional Requirements}
+
+\begin{enumerate}[label=NFR-\arabic*]
+    \item \textbf{Performance}: Model inference latency shall not exceed 1 second per prediction on Raspberry Pi 4.
+    \item \textbf{Accuracy}: The best model shall achieve RMSE below 20 on the test set.
+    \item \textbf{Scalability}: The data pipeline shall handle at least 1 year of hourly data (8,784 observations) without performance degradation.
+    \item \textbf{Reliability}: The data ingestion pipeline shall gracefully handle API failures with retry logic.
+    \item \textbf{Portability}: ONNX models shall be portable across x86-64 and ARM64 architectures.
+    \item \textbf{Energy Efficiency}: The edge deployment unit shall consume no more than 5 watts under normal operation.
+    \item \textbf{Maintainability}: All code shall be modular, well-documented, and follow PEP 8 conventions.
+    \item \textbf{Reproducibility}: All experiments shall be fully reproducible with fixed random seeds (seed = 42).
+\end{enumerate}
+
+\section{System Constraints}
+
+\begin{itemize}
+    \item \textbf{GPU Memory}: Model training is constrained by 4 GB of VRAM on the RTX 2050, limiting batch sizes and model dimensions.
+    \item \textbf{Edge RAM}: The Raspberry Pi 4 has 8 GB RAM shared between the OS and model inference.
+    \item \textbf{Data Resolution}: Hourly data limits the temporal granularity of predictions.
+    \item \textbf{API Dependency}: The system depends on the Open-Meteo API for data; API unavailability or changes could disrupt operation.
+    \item \textbf{Single-City Focus}: The current study is limited to Hyderabad; generalization to other cities requires retraining.
+\end{itemize}
+
+\section{Data Description}
+
+The dataset was sourced from the Open-Meteo Air Quality API, providing hourly observations for Hyderabad spanning one full year (8,784 timestamps). The data includes both pollutant concentrations and meteorological variables.
+
+\subsection{Pollutant Variables}
+
+\begin{table}[H]
+\centering
+\caption{Air Quality Pollutant Variables}
+\label{tab:pollutants}
+\begin{tabular}{lll}
+\toprule
+\textbf{Variable} & \textbf{Unit} & \textbf{Description} \\
+\midrule
+PM$_{2.5}$ & $\mu$g/m$^3$ & Particulate matter $\leq$ 2.5 $\mu$m (target) \\
+PM$_{10}$ & $\mu$g/m$^3$ & Particulate matter $\leq$ 10 $\mu$m \\
+Carbon Monoxide (CO) & $\mu$g/m$^3$ & Carbon monoxide concentration \\
+Nitrogen Dioxide (NO$_2$) & $\mu$g/m$^3$ & Nitrogen dioxide concentration \\
+Sulphur Dioxide (SO$_2$) & $\mu$g/m$^3$ & Sulphur dioxide concentration \\
+Ozone (O$_3$) & $\mu$g/m$^3$ & Ground-level ozone concentration \\
+European AQI & Index & Composite air quality index \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Data Characteristics}
+
+The Hyderabad dataset exhibits the following characteristics:
+
+\begin{itemize}
+    \item \textbf{Completeness}: The Open-Meteo API provides near-complete data with minimal gaps. Missing values (less than 1\% of observations) are handled via linear interpolation.
+    \item \textbf{Seasonality}: PM$_{2.5}$ levels show strong seasonal patterns, with winter months (November--February) exhibiting elevated concentrations due to temperature inversions and reduced atmospheric dispersion.
+    \item \textbf{Diurnal Patterns}: Daytime PM$_{2.5}$ levels are generally lower than nighttime levels due to atmospheric mixing. Morning and evening rush hours show distinct peaks.
+    \item \textbf{Correlations}: PM$_{2.5}$ is positively correlated with PM$_{10}$ (r $\approx$ 0.85) and CO (r $\approx$ 0.60), and negatively correlated with O$_3$ (r $\approx$ -0.30).
+\end{itemize}
+
+\subsection{Data Splitting}
+
+The dataset is split chronologically to prevent data leakage:
+
+\begin{itemize}
+    \item \textbf{Training Set}: First 70\% of observations (6,149 hours)
+    \item \textbf{Validation Set}: Next 15\% of observations (1,317 hours)
+    \item \textbf{Test Set}: Final 15\% of observations (1,318 hours)
+\end{itemize}
+
+This temporal split respects the sequential nature of time series data, ensuring that the test set represents truly unseen future data.
