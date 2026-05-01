@@ -45,6 +45,7 @@ deployment/graphiti/
 graphify-out/
 *.cache
 .cache/
+node_modules/
 
 # Environment
 .env
