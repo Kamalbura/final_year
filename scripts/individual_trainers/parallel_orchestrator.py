@@ -6,27 +6,48 @@ from pathlib import Path
 
 CITIES = ["delhi", "hyderabad", "bengaluru"]
 TRAINERS = [
-    "scripts/individual_trainers/lstm_trainer.py",
+    "scripts/individual_trainers/statistical_trainers.py",
+    "scripts/individual_trainers/ensemble_trainers.py",
+    "scripts/individual_trainers/sequence_trainers.py",
+    "scripts/individual_trainers/advanced_trainers.py",
+    "scripts/individual_trainers/tft_trainer.py",
+    "scripts/individual_trainers/spatiotemporal_trainers.py",
     "scripts/individual_trainers/rf_trainer.py",
-    "scripts/individual_trainers/transformer_trainer.py",
 ]
 
 def run_trainer(trainer_script, city, trials=5):
     print(f"Starting {trainer_script} for {city}...")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(Path(__file__).resolve().parent.parent.parent)
-    cmd = [
-        "conda", "run", "-n", "dl-env", 
-        "python", trainer_script, 
-        "--city", city, 
-        "--trials", str(trials)
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if result.returncode == 0:
-        print(f"Finished {trainer_script} for {city}")
+    
+    # Handle multi-model scripts
+    if "statistical_trainers.py" in trainer_script:
+        models = ["ARIMA", "SARIMA", "VAR"]
+    elif "ensemble_trainers.py" in trainer_script:
+        models = ["XGBoost", "LightGBM", "CatBoost", "SVR"]
+    elif "sequence_trainers.py" in trainer_script:
+        models = ["RNN", "LSTM", "GRU", "BiLSTM"]
+    elif "advanced_trainers.py" in trainer_script:
+        models = ["CNN-LSTM", "CNN-GRU", "BiLSTM-Attention"]
     else:
-        print(f"Error in {trainer_script} for {city}:\n{result.stderr}")
-    return result.returncode
+        models = [None]
+
+    for model in models:
+        cmd = [
+            "conda", "run", "-n", "dl-env", 
+            "python", trainer_script, 
+            "--city", city, 
+            "--trials", str(trials)
+        ]
+        if model:
+            cmd.extend(["--model", model])
+            print(f"  Training sub-model: {model}")
+            
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+        if result.returncode != 0:
+            print(f"Error in {trainer_script} ({model}) for {city}:\n{result.stderr}")
+    
+    return 0
 
 def main():
     tasks = []
