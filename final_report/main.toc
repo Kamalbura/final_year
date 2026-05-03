@@ -44,20 +44,20 @@
 \contentsline {subsection}{\numberline {3.3.3}VAR (Vector Autoregression)}{24}{subsection.3.3.3}%
 \contentsline {subsection}{\numberline {3.3.4}Simple RNN}{24}{subsection.3.3.4}%
 \contentsline {subsection}{\numberline {3.3.5}LSTM (Long Short-Term Memory)}{24}{subsection.3.3.5}%
-\contentsline {subsection}{\numberline {3.3.6}GRU (Gated Recurrent Unit)}{24}{subsection.3.3.6}%
+\contentsline {subsection}{\numberline {3.3.6}GRU (Gated Recurrent Unit)}{25}{subsection.3.3.6}%
 \contentsline {subsection}{\numberline {3.3.7}BiLSTM (Bidirectional LSTM)}{25}{subsection.3.3.7}%
 \contentsline {subsection}{\numberline {3.3.8}CNN-LSTM}{25}{subsection.3.3.8}%
-\contentsline {subsection}{\numberline {3.3.9}CNN-GRU}{25}{subsection.3.3.9}%
-\contentsline {subsection}{\numberline {3.3.10}BiLSTM with Attention}{25}{subsection.3.3.10}%
+\contentsline {subsection}{\numberline {3.3.9}CNN-GRU}{26}{subsection.3.3.9}%
+\contentsline {subsection}{\numberline {3.3.10}BiLSTM with Attention}{26}{subsection.3.3.10}%
 \contentsline {subsection}{\numberline {3.3.11}Transformer}{26}{subsection.3.3.11}%
 \contentsline {subsection}{\numberline {3.3.12}Informer}{26}{subsection.3.3.12}%
-\contentsline {subsection}{\numberline {3.3.13}Autoformer}{26}{subsection.3.3.13}%
+\contentsline {subsection}{\numberline {3.3.13}Autoformer}{27}{subsection.3.3.13}%
 \contentsline {subsection}{\numberline {3.3.14}ST-GCN (Spatio-Temporal Graph Convolutional Network)}{27}{subsection.3.3.14}%
-\contentsline {section}{\numberline {3.4}Hyperparameter Optimization}{27}{section.3.4}%
-\contentsline {subsection}{\numberline {3.4.1}Optuna Framework}{27}{subsection.3.4.1}%
-\contentsline {subsection}{\numberline {3.4.2}Search Space}{27}{subsection.3.4.2}%
+\contentsline {section}{\numberline {3.4}Hyperparameter Optimization}{28}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Optuna Framework}{28}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Search Space}{28}{subsection.3.4.2}%
 \contentsline {subsection}{\numberline {3.4.3}Optimization Budget}{28}{subsection.3.4.3}%
-\contentsline {section}{\numberline {3.5}Training Configuration}{28}{section.3.5}%
+\contentsline {section}{\numberline {3.5}Training Configuration}{29}{section.3.5}%
 \contentsline {section}{\numberline {3.6}Deployment Architecture}{29}{section.3.6}%
 \contentsline {chapter}{\numberline {4}Implementation}{30}{chapter.4}%
 \contentsline {section}{\numberline {4.1}Project Structure}{30}{section.4.1}%

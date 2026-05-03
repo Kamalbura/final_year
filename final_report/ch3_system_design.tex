@@ -116,6 +116,29 @@ LSTM addresses the vanishing gradient problem through a gating mechanism with th
 
 where $\sigma$ is the sigmoid activation and $\odot$ denotes element-wise multiplication. Our LSTM uses 2 layers, 128 hidden units, and dropout of 0.2. The model has 147,073 trainable parameters.
 
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw, minimum width=2.5cm, minimum height=0.8cm, fill=#1!20},
+    arr/.style={-{Stealth[scale=0.8]}, thick}
+]
+\node[box=lstmblue] (forget) {Forget Gate $f_t$};
+\node[box=lstmblue, below=0.2cm of forget] (input) {Input Gate $i_t$};
+\node[box=attngreen, below=0.2cm of input] (cand) {Candidate $\tilde{c}_t$};
+\node[box=ffpurple, below=0.2cm of cand] (output) {Output Gate $o_t$};
+\node[box=lstmblue, right=1cm of forget, minimum height=3.2cm, yshift=-1.6cm, align=center] (cell) {Cell State\\$c_t$};
+\node[box=lstmblue, right=1cm of cell, minimum height=3.2cm, align=center] (hidden) {Hidden\\State\\$h_t$};
+\draw[arr] (forget.east) -- (cell.west|-forget.east);
+\draw[arr] (input.east) -- (cell.west|-input.east);
+\draw[arr] (cand.east) -- (cell.west|-cand.east);
+\draw[arr] (output.east) -- (cell.west|-output.east);
+\draw[arr] (cell.east) -- (hidden.west);
+\end{tikzpicture}
+\caption{Long Short-Term Memory (LSTM) cell architecture showing the four gating mechanisms}
+\label{fig:lstm_arch}
+\end{figure}
+
 \subsection{GRU (Gated Recurrent Unit)}
 
 GRU simplifies the LSTM by merging the cell state and hidden state, and combining the forget and input gates into a single update gate:
@@ -128,6 +151,25 @@ GRU simplifies the LSTM by merging the cell state and hidden state, and combinin
 \end{align}
 
 Our GRU implementation uses 2 layers, 128 hidden units, and dropout of 0.2, resulting in 110,593 parameters --- 25\% fewer than the equivalent LSTM.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm,
+    box/.style={rectangle, draw, minimum width=2.8cm, minimum height=0.8cm, fill=#1!20},
+    arr/.style={-{Stealth[scale=0.8]}, thick}
+]
+\node[box=gruorange] (update) {Update Gate $z_t$};
+\node[box=gruorange, below=0.2cm of update] (reset) {Reset Gate $r_t$};
+\node[box=attngreen, below=0.2cm of reset] (cand) {Candidate $\tilde{h}_t$};
+\node[box=gruorange, right=0.8cm of update, minimum height=3.2cm, yshift=-1.6cm, align=center] (hidden) {Hidden\\State\\$h_t$};
+\draw[arr] (update.east) -- (hidden.west|-update.east);
+\draw[arr] (reset.east) -- (hidden.west|-reset.east);
+\draw[arr] (cand.east) -- (hidden.west|-cand.east);
+\end{tikzpicture}
+\caption{Gated Recurrent Unit (GRU) architecture with simplified gating mechanism (update + reset gates only)}
+\label{fig:gru_arch}
+\end{figure}
 
 \subsection{BiLSTM (Bidirectional LSTM)}
 
@@ -180,6 +222,29 @@ The Transformer architecture replaces recurrence with multi-head self-attention:
 \end{equation}
 
 Our Transformer implementation uses 4 encoder layers with 4 attention heads, a model dimension ($d_{\text{model}}$) of 128, feed-forward dimension of 512, and dropout of 0.1. Positional encoding is added to the input embeddings to provide temporal ordering information, as the self-attention mechanism is inherently permutation-invariant.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.2cm and 0.8cm,
+    box/.style={rectangle, draw, minimum width=2.4cm, minimum height=0.7cm, fill=#1!20},
+    arr/.style={-{Stealth[scale=0.8]}, thick}
+]
+\node[box=lstmblue] (input) {Input Embed + Pos Encoding};
+\node[box=lstmblue, right=of input] (qkv) {Linear Q, K, V};
+\node[box=attngreen, right=of qkv] (atten) {Multi-Head Self-Attn};
+\node[box=ffpurple, right=of atten] (ff) {Feed Forward};
+\node[box=gruorange, right=of ff] (out) {Output};
+\draw[arr] (input) -- (qkv);
+\draw[arr] (qkv) -- (atten);
+\draw[arr] (atten) -- (ff);
+\draw[arr] (ff) -- (out);
+\draw[arr, densely dotted, bend right=15] (qkv.north) to (atten.north);
+\draw[arr, densely dotted, bend right=15] (atten.north) to (ff.north);
+\end{tikzpicture}
+\caption{Transformer encoder: Q, K, V projections $\rightarrow$ multi-head self-attention $\rightarrow$ feed-forward, with residual skip connections (dotted)}
+\label{fig:transformer_arch}
+\end{figure}
 
 \subsection{Informer}
 

@@ -5,14 +5,14 @@
 \contentsline {table}{\numberline {2.2}{\ignorespaces Hardware Cost Breakdown}}{19}{table.caption.6}%
 \contentsline {table}{\numberline {2.3}{\ignorespaces Air Quality Pollutant Variables}}{21}{table.caption.7}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Hyperparameter Search Space by Model Family}}{28}{table.caption.9}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Hyperparameter Search Space by Model Family}}{28}{table.caption.12}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces Optimal Hyperparameters for Top Models}}{35}{table.caption.10}%
-\contentsline {table}{\numberline {4.2}{\ignorespaces Raspberry Pi 4 Hardware Specifications}}{36}{table.caption.11}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces Optimal Hyperparameters for Top Models}}{35}{table.caption.13}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Raspberry Pi 4 Hardware Specifications}}{36}{table.caption.14}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Complete Model Performance on Hyderabad PM$_{2.5}$ Forecasting}}{38}{table.caption.12}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Standard RNN-Based Model Performance}}{40}{table.caption.13}%
-\contentsline {table}{\numberline {5.3}{\ignorespaces Hybrid Model Performance}}{40}{table.caption.14}%
-\contentsline {table}{\numberline {5.4}{\ignorespaces Transformer Family Performance}}{40}{table.caption.15}%
-\contentsline {table}{\numberline {5.5}{\ignorespaces Raspberry Pi 4 ONNX Inference Benchmarks}}{44}{table.caption.20}%
+\contentsline {table}{\numberline {5.1}{\ignorespaces Complete Model Performance on Hyderabad PM$_{2.5}$ Forecasting}}{38}{table.caption.15}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Standard RNN-Based Model Performance}}{40}{table.caption.16}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Hybrid Model Performance}}{40}{table.caption.17}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Transformer Family Performance}}{40}{table.caption.18}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Raspberry Pi 4 ONNX Inference Benchmarks}}{44}{table.caption.23}%
 \addvspace {10\p@ }

@@ -2,11 +2,14 @@
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \contentsline {figure}{\numberline {3.1}{\ignorespaces High-Level System Architecture}}{22}{figure.caption.8}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Long Short-Term Memory (LSTM) cell architecture showing the four gating mechanisms}}{24}{figure.caption.9}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Gated Recurrent Unit (GRU) architecture with simplified gating mechanism (update + reset gates only)}}{25}{figure.caption.10}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Transformer encoder: Q, K, V projections $\rightarrow $ multi-head self-attention $\rightarrow $ feed-forward, with residual skip connections (dotted)}}{26}{figure.caption.11}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {figure}{\numberline {5.1}{\ignorespaces Training convergence curves for the top three performing models}}{41}{figure.caption.16}%
-\contentsline {figure}{\numberline {5.2}{\ignorespaces Parity plots: Predicted vs. Actual PM$_{2.5}$ values}}{42}{figure.caption.17}%
-\contentsline {figure}{\numberline {5.3}{\ignorespaces 24-hour time series predictions versus actual observations}}{42}{figure.caption.18}%
-\contentsline {figure}{\numberline {5.4}{\ignorespaces Error histogram distributions for key models}}{43}{figure.caption.19}%
-\contentsline {figure}{\numberline {5.5}{\ignorespaces Deployment dashboard and Airflow orchestration on Raspberry Pi 4}}{45}{figure.caption.21}%
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Training convergence curves for the top three performing models}}{41}{figure.caption.19}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Parity plots: Predicted vs. Actual PM$_{2.5}$ values}}{42}{figure.caption.20}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces 24-hour time series predictions versus actual observations}}{42}{figure.caption.21}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces Error histogram distributions for key models}}{43}{figure.caption.22}%
+\contentsline {figure}{\numberline {5.5}{\ignorespaces Deployment dashboard and Airflow orchestration on Raspberry Pi 4}}{45}{figure.caption.24}%
 \addvspace {10\p@ }
