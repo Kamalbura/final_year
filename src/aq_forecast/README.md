@@ -57,3 +57,26 @@ Supporting scripts live in `scripts/aq_forecast/`.
 - `get_aqi_category` extracted from `data/download.py` into `aqi.py` and imported
   back, so the mapping has exactly one definition and the evaluation layer no
   longer pulls in the download pipeline.
+
+## Data
+
+Seven CPCB monitoring stations around Hyderabad, hourly from January 2023:
+Bollaram Industrial Area, Central University Hyderabad, ICRISAT Patancheru,
+IDA Pashamylaram, Nacharam, Sanathnagar and Zoo Park. Columns cover PM2.5, PM10,
+CO, NO2, SO2, O3, ambient temperature, humidity, wind speed and direction,
+rainfall, barometric pressure and solar radiation, with `AQI`, `AQI_Category`
+and a land-use `zone` label already computed.
+
+This is a **different dataset** from `data/hyderabad_station_aq_1y/`, which covers
+3 stations from December 2024 with 10 columns and no computed AQI. Both are kept.
+
+The files live in `data/raw/` **gzipped**, because the repository ignores `*.csv`
+wholesale. The pipeline reads plain `.csv`, so decompress before the first run:
+
+```bash
+gunzip -k data/raw/*.csv.gz
+```
+
+`all_stations_combined.csv` is not committed — `data/download.py` regenerates it by
+concatenating the per-station files. `data/processed/` is gitignored for the same
+reason; `scripts/aq_forecast/run_preprocessing.py` rebuilds it.

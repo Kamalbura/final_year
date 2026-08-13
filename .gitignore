@@ -81,3 +81,9 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# aq_forecast: regenerable from data/raw via scripts/aq_forecast/run_preprocessing.py
+data/processed/
+
+# aq_forecast raw station data is committed gzipped (repo ignores *.csv)
+!data/raw/*.csv.gz
